@@ -318,6 +318,17 @@ namespace WinAuth
 						File.Delete(config.Filename + ".bak");
             if (File.Exists(config.Filename) == true)
             {
+              // Preserve a permanent rollback backup on first migration from WINAUTH3 (VULN-01 / Backward compatibility)
+              try
+              {
+                string existingContent = File.ReadAllText(config.Filename);
+                if (existingContent.IndexOf("WINAUTH3") != -1 && !File.Exists(config.Filename + ".v3.bak"))
+                {
+                  File.Copy(config.Filename, config.Filename + ".v3.bak", true);
+                }
+              }
+              catch (Exception) { }
+
               File.Move(config.Filename, config.Filename + ".bak");
             }
 						File.Move(tempfile, config.Filename);
@@ -418,6 +429,47 @@ namespace WinAuth
         DeleteRegistryKey(RUNKEY + "\\" + WinAuthMain.APPLICATION_NAME);
       }			
     }
+
+		/// <summary>
+		/// Create a protected DataObject that prevents clipboard history / cloud sync / clipboard monitor leaks (VULN-20)
+		/// </summary>
+		public static DataObject CreateProtectedDataObject(string text)
+		{
+			var dataObject = new DataObject();
+			dataObject.SetData(DataFormats.UnicodeText, text);
+			dataObject.SetData(DataFormats.Text, text);
+
+			// Exclude from Windows 10/11 Clipboard history, cloud sync, and clipboard monitors
+			byte[] zeroDword = new byte[] { 0, 0, 0, 0 };
+			dataObject.SetData("CanIncludeInClipboardHistory", new MemoryStream(zeroDword));
+			dataObject.SetData("CanUploadToCloudClipboard", new MemoryStream(zeroDword));
+			dataObject.SetData("ExcludeClipboardContentFromMonitorProcessing", new MemoryStream(zeroDword));
+
+			return dataObject;
+		}
+
+		/// <summary>
+		/// Schedule automatic clearing of clipboard text after delay (default 30 seconds - VULN-20)
+		/// </summary>
+		public static void ScheduleClipboardClear(string expectedText, int delaySeconds = 30)
+		{
+			if (string.IsNullOrEmpty(expectedText)) return;
+			var timer = new System.Windows.Forms.Timer { Interval = delaySeconds * 1000 };
+			timer.Tick += (s, e) =>
+			{
+				timer.Stop();
+				timer.Dispose();
+				try
+				{
+					if (Clipboard.ContainsText() && Clipboard.GetText() == expectedText)
+					{
+						Clipboard.Clear();
+					}
+				}
+				catch { }
+			};
+			timer.Start();
+		}
 
 		/// <summary>
 		/// Import a file containing authenticators in the KeyUriFormat. The file might be plain text, encrypted zip or encrypted pgp.

@@ -1455,18 +1455,24 @@ namespace WinAuth
 		}
 
 		/// <summary>
-		/// Put data into the clipboard
+		/// Put data into the clipboard with protection against clipboard history leaks (VULN-20)
 		/// </summary>
 		/// <param name="data"></param>
 		public void SetClipboardData(object data)
 		{
 			bool clipRetry = false;
+			string text = data as string;
+			object dataObject = (text != null ? WinAuthHelper.CreateProtectedDataObject(text) : data);
 			do
 			{
 				try
 				{
 					Clipboard.Clear();
-					Clipboard.SetDataObject(data, true, 4, 250);
+					Clipboard.SetDataObject(dataObject, false, 4, 250);
+					if (text != null)
+					{
+						WinAuthHelper.ScheduleClipboardClear(text, 30);
+					}
 				}
 				catch (ExternalException)
 				{

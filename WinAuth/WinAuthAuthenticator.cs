@@ -433,7 +433,10 @@ namespace WinAuth
             // add delay for clip error
             System.Threading.Thread.Sleep(100);
 
-            Clipboard.SetDataObject(code, true, 4, 250);
+            // Set protected data object and schedule auto-clear (VULN-20)
+            DataObject dataObj = WinAuthHelper.CreateProtectedDataObject(code);
+            Clipboard.SetDataObject(dataObj, false, 4, 250);
+            WinAuthHelper.ScheduleClipboardClear(code, 30);
           }
           catch (ExternalException)
           {
