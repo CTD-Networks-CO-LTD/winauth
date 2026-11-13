@@ -463,6 +463,7 @@ namespace WinAuth
 				try
 				{
 					XmlDocument doc = new XmlDocument();
+					doc.XmlResolver = null;
 					doc.LoadXml(uuid);
 					var node = doc.SelectSingleNode("//string[@name='uuidKey']");
 					if (node == null)

@@ -179,29 +179,38 @@ namespace WinAuth
               break;
             case "-p":
             case "--password":
-              // set explicit password to use
-              i++;
-							password = args[i];
+              // set explicit password to use (boundary checked - VULN-17)
+              if (i + 1 < args.Length)
+              {
+                i++;
+                password = args[i];
+              }
               break;
 						case "--proxy":
-							// set proxy [user[:pass]@]ip[:host]
-							i++;
-							proxy = args[i];
+							// set proxy [user[:pass]@]ip[:host] (boundary checked - VULN-17)
+							if (i + 1 < args.Length)
+							{
+								i++;
+								proxy = args[i];
+							}
 							break;
 						case "-l":
 						case "--log":
-							i++;
-							FieldInfo fi = typeof(LogLevel).GetField(args[i], BindingFlags.Static | BindingFlags.IgnoreCase | BindingFlags.Public);
-							if (fi == null)
+							if (i + 1 < args.Length)
 							{
-								WinAuthForm.ErrorDialog(this, "Invalid parameter: log value: " + args[i] + " (must be error,info,debug,trace)");
-								System.Diagnostics.Process.GetCurrentProcess().Kill();
-							}
-							var loglevel = fi.GetValue(null) as LogLevel;
-							var target = NLog.LogManager.Configuration.AllTargets.Where(t => t.Name == null).FirstOrDefault();
-							if (target != null)
-							{
-								LogManager.Configuration.LoggingRules.Add(new NLog.Config.LoggingRule("*", loglevel, target));
+								i++;
+								FieldInfo fi = typeof(LogLevel).GetField(args[i], BindingFlags.Static | BindingFlags.IgnoreCase | BindingFlags.Public);
+								if (fi == null)
+								{
+									WinAuthForm.ErrorDialog(this, "Invalid parameter: log value: " + args[i] + " (must be error,info,debug,trace)");
+									System.Diagnostics.Process.GetCurrentProcess().Kill();
+								}
+								var loglevel = fi.GetValue(null) as LogLevel;
+								var target = NLog.LogManager.Configuration.AllTargets.Where(t => t.Name == null).FirstOrDefault();
+								if (target != null)
+								{
+									LogManager.Configuration.LoggingRules.Add(new NLog.Config.LoggingRule("*", loglevel, target));
+								}
 							}
 							break;
 						default:
@@ -684,7 +693,6 @@ namespace WinAuth
 		private void InitializeForm()
 		{
 			// create the updater and check for update if appropriate
-			if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed == false)
 			{
 				Updater = new WinAuthUpdater(this.Config);
 
@@ -1447,18 +1455,24 @@ namespace WinAuth
 		}
 
 		/// <summary>
-		/// Put data into the clipboard
+		/// Put data into the clipboard with protection against clipboard history leaks (VULN-20)
 		/// </summary>
 		/// <param name="data"></param>
 		public void SetClipboardData(object data)
 		{
 			bool clipRetry = false;
+			string text = data as string;
+			object dataObject = (text != null ? WinAuthHelper.CreateProtectedDataObject(text) : data);
 			do
 			{
 				try
 				{
 					Clipboard.Clear();
-					Clipboard.SetDataObject(data, true, 4, 250);
+					Clipboard.SetDataObject(dataObject, false, 4, 250);
+					if (text != null)
+					{
+						WinAuthHelper.ScheduleClipboardClear(text, 30);
+					}
 				}
 				catch (ExternalException)
 				{
@@ -2130,10 +2144,7 @@ namespace WinAuth
 		/// <param name="e"></param>
 		private void newVersionLink_Click(object sender, EventArgs e)
 		{
-			if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed == false)
-			{
-				ShowUpdaterForm();
-			}
+			ShowUpdaterForm();
 		}
 
 		/// <summary>
@@ -2213,7 +2224,6 @@ namespace WinAuth
 
 			menu.Items.Add(new ToolStripSeparator());
 
-			if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed == false)
 			{
 				menuitem = new ToolStripMenuItem(strings.MenuUpdates + "...");
 				menuitem.Name = "aboutUpdatesMenuItem";

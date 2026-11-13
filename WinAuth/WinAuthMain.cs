@@ -60,9 +60,9 @@ namespace WinAuth
     /// URL to get latest information
     /// </summary>
 #if BETA
-		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/winauth/winauth/master/docs/current-beta-version.xml";
+		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-beta-version.xml";
 #else
-    public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/winauth/winauth/master/docs/current-version.xml";
+		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-version.xml";
 #endif
 
 		/// <summary>
@@ -334,17 +334,14 @@ namespace WinAuth
 
 		private static void main()
 		{
-#if NETFX_45
-			// Fix #226: set to use TLS1.2
+			// Enforce TLS 1.2 and TLS 1.3 (disable vulnerable SSL3/TLS 1.0/TLS 1.1 - VULN-07)
 			try
 			{
-				ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+				ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 			}
 			catch (Exception)
 			{
-				// not 4.5 installed - we could prompt, but not for now
 			}
-#endif
 
 			// Issue #53: set a default culture
 			if (System.Threading.Thread.CurrentThread.CurrentCulture == null || System.Threading.Thread.CurrentThread.CurrentUICulture == null)

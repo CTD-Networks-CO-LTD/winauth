@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2015 Colin Mackie.
  * This software is distributed under the terms of the GNU General Public License.
  *
@@ -778,6 +778,33 @@ namespace WinAuth
 		/// <param name="cookies">cookie container</param>
 		/// <param name="request">Request data</param>
 		/// <param name="ex">Thrown exception</param>
+		private static readonly HashSet<string> SensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			"password", "access_token", "authenticator_code", "activation_code",
+			"shared_secret", "identity_secret", "secret_1", "oauth", "token", "twofactorcode", "revocation_code"
+		};
+
+		private static string SanitizeParam(string key, string value)
+		{
+			if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value)) return value;
+			foreach (var sensitive in SensitiveKeys)
+			{
+				if (key.IndexOf(sensitive, StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					return "[REDACTED]";
+				}
+			}
+			return value;
+		}
+
+		/// <summary>
+		/// Log an error response
+		/// </summary>
+		/// <param name="method">Get or POST</param>
+		/// <param name="url">Request URL</param>
+		/// <param name="cookies">cookie container</param>
+		/// <param name="request">Request data</param>
+		/// <param name="ex">Thrown exception</param>
 		private static void LogException(string method, string url, CookieContainer cookies, NameValueCollection request, Exception ex)
 		{
 			StringBuilder data = new StringBuilder();
@@ -793,7 +820,7 @@ namespace WinAuth
 					{
 						data.Append("&");
 					}
-					data.Append(cookie.Name + "=" + cookie.Value);
+					data.Append(cookie.Name + "=[REDACTED]");
 				}
 				data.Append(" ");
 			}
@@ -810,7 +837,7 @@ namespace WinAuth
 					{
 						data.Append("&");
 					}
-					data.Append(key + "=" + request[key]);
+					data.Append(key + "=" + SanitizeParam(key, request[key]));
 				}
 				data.Append(" ");
 			}
@@ -841,7 +868,7 @@ namespace WinAuth
 					{
 						data.Append("&");
 					}
-					data.Append(cookie.Name + "=" + cookie.Value);
+					data.Append(cookie.Name + "=[REDACTED]");
 				}
 				data.Append(" ");
 			}
@@ -858,12 +885,13 @@ namespace WinAuth
 					{
 						data.Append("&");
 					}
-					data.Append(key + "=" + request[key]);
+					data.Append(key + "=" + SanitizeParam(key, request[key]));
 				}
 				data.Append(" ");
 			}
 
-			Logger.Info("{0}\t{1}\t{2}\t{3}", method, url, data.ToString(), (response != null ? response.Replace("\n", "\\n").Replace("\r", "") : string.Empty));
+			string responseSummary = response != null ? string.Format("[Response: {0} chars]", response.Length) : string.Empty;
+			Logger.Info("{0}\t{1}\t{2}\t{3}", method, url, data.ToString(), responseSummary);
 		}
 
 		/// <summary>

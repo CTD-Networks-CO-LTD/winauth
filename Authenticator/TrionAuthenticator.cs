@@ -160,16 +160,18 @@ namespace WinAuth
 			// generate model name
 			string deviceId = GeneralRandomModel();
 
-			string postdata = "deviceId=" + deviceId;
+			string postdata = "deviceId=" + Uri.EscapeDataString(deviceId ?? string.Empty);
+			byte[] postBytes = Encoding.UTF8.GetBytes(postdata);
 
 			// call the enroll server
 			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(ENROLL_URL);
 			request.Method = "POST";
 			request.ContentType = "application/x-www-form-urlencoded";
-			request.ContentLength = postdata.Length;
-			StreamWriter requestStream = new StreamWriter(request.GetRequestStream());
-			requestStream.Write(postdata);
-			requestStream.Close();
+			request.ContentLength = postBytes.Length;
+			using (Stream requestStream = request.GetRequestStream())
+			{
+				requestStream.Write(postBytes, 0, postBytes.Length);
+			}
 			string responseData;
 			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
 			{
@@ -194,6 +196,7 @@ namespace WinAuth
 			//	<ErrorCode /> only exists if an error
 			// </DeviceKey>
 			XmlDocument doc = new XmlDocument();
+			doc.XmlResolver = null;
 			doc.LoadXml(responseData);
 			XmlNode node = doc.SelectSingleNode("//ErrorCode");
 			if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
@@ -235,6 +238,7 @@ namespace WinAuth
 				//	<ErrorCode /> only exists if an error
 				// </DeviceKey>
 				XmlDocument doc = new XmlDocument();
+				doc.XmlResolver = null;
 				doc.LoadXml(responseData);
 				XmlNode node = doc.SelectSingleNode("//ErrorCode");
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
@@ -383,16 +387,19 @@ namespace WinAuth
 		/// <param name="question2">returned secret question 2</param>
 		public static void SecurityQuestions(string email, string password, out string question1, out string question2)
 		{
-			string postdata = "emailAddress=" + email + "&password=" + password;
+			string postdata = "emailAddress=" + Uri.EscapeDataString(email ?? string.Empty)
+				+ "&password=" + Uri.EscapeDataString(password ?? string.Empty);
+			byte[] postBytes = Encoding.UTF8.GetBytes(postdata);
 
 			// call the enroll server
 			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(SECURITYQUESTIONS_URL);
 			request.Method = "POST";
 			request.ContentType = "application/x-www-form-urlencoded";
-			request.ContentLength = postdata.Length;
-			StreamWriter requestStream = new StreamWriter(request.GetRequestStream());
-			requestStream.Write(postdata);
-			requestStream.Close();
+			request.ContentLength = postBytes.Length;
+			using (Stream requestStream = request.GetRequestStream())
+			{
+				requestStream.Write(postBytes, 0, postBytes.Length);
+			}
 			string responseData;
 			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
 			{
@@ -417,6 +424,7 @@ namespace WinAuth
 			//	<ErrorCode /> only exists if an error
 			// </SecurityQuestions>
 			XmlDocument doc = new XmlDocument();
+			doc.XmlResolver = null;
 			doc.LoadXml(responseData);
 			XmlNode node = doc.SelectSingleNode("//ErrorCode");
 			if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
@@ -440,20 +448,22 @@ namespace WinAuth
 		/// <param name="answer2">answer to secret question 2</param>
 		public void Restore(string email, string password, string deviceId, string answer1, string answer2)
 		{
-			string postdata = "emailAddress=" + email
-				+ "&password=" + password
-				+ "&deviceId=" + deviceId
-				+ "&securityAnswer=" + answer1
-				+ "&secondSecurityAnswer=" + answer2;
+			string postdata = "emailAddress=" + Uri.EscapeDataString(email ?? string.Empty)
+				+ "&password=" + Uri.EscapeDataString(password ?? string.Empty)
+				+ "&deviceId=" + Uri.EscapeDataString(deviceId ?? string.Empty)
+				+ "&securityAnswer=" + Uri.EscapeDataString(answer1 ?? string.Empty)
+				+ "&secondSecurityAnswer=" + Uri.EscapeDataString(answer2 ?? string.Empty);
+			byte[] postBytes = Encoding.UTF8.GetBytes(postdata);
 
 			// call the enroll server
 			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(RESTORE_URL);
 			request.Method = "POST";
 			request.ContentType = "application/x-www-form-urlencoded";
-			request.ContentLength = postdata.Length;
-			StreamWriter requestStream = new StreamWriter(request.GetRequestStream());
-			requestStream.Write(postdata);
-			requestStream.Close();
+			request.ContentLength = postBytes.Length;
+			using (Stream requestStream = request.GetRequestStream())
+			{
+				requestStream.Write(postBytes, 0, postBytes.Length);
+			}
 			string responseData;
 			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
 			{
@@ -478,6 +488,7 @@ namespace WinAuth
 			//	<ErrorCode /> only exists if an error
 			// </DeviceKey>
 			XmlDocument doc = new XmlDocument();
+			doc.XmlResolver = null;
 			doc.LoadXml(responseData);
 			XmlNode node = doc.SelectSingleNode("//ErrorCode");
 			if (node != null && string.IsNullOrEmpty(node.InnerText) == false)

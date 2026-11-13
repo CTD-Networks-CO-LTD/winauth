@@ -73,18 +73,7 @@ namespace WinAuth
 			this.errorLabel.Text = string.Format(this.errorLabel.Text, (ErrorException != null ? ErrorException.Message : strings.UnknownError));
 
 			// build data
-#if DEBUG
-			dataText.Text = string.Format("{0}\n\n{1}", this.ErrorException.Message, new System.Diagnostics.StackTrace(this.ErrorException).ToString());
-#else
-			try
-			{
-				dataText.Text = WinAuthHelper.PGPEncrypt(BuildDiagnostics(), WinAuthHelper.WINAUTH_PGP_PUBLICKEY);
-			}
-			catch (Exception ex)
-			{
-				dataText.Text = string.Format("{0}\n\n{1}", ex.Message, new System.Diagnostics.StackTrace(ex).ToString());
-			}
-#endif
+			dataText.Text = BuildDiagnostics();
 		}
 
 		/// <summary>
@@ -99,59 +88,11 @@ namespace WinAuth
 #if NETFX_4
 			if (Version.TryParse(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion, out version) == true)
 			{
-				diag.Append("Version:" + version.ToString(4));
+				diag.Append("Version: " + version.ToString(4)).Append(Environment.NewLine);
 			}
 #endif
-#if NETFX_3
-			try
-			{
-				version = new Version(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion);
-				diag.Append("Version:" + version.ToString(4));
-			}
-			catch (Exception) { }
-#endif
-
-			// add winauth log
-			try
-			{
-				string dir = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), WinAuthMain.APPLICATION_NAME);
-				if (Directory.Exists(dir) == true)
-				{
-					string winauthlog = Path.Combine(dir, "winauth.log");
-					if (File.Exists(winauthlog) == true)
-					{
-						diag.Append("--WINAUTH.LOG--").Append(Environment.NewLine);
-						diag.Append(File.ReadAllText(winauthlog)).Append(Environment.NewLine).Append(Environment.NewLine);
-					}
-
-					// add authenticator.xml
-					foreach (string file in Directory.GetFiles(dir, "*.xml"))
-					{
-						diag.Append("--" + file + "--").Append(Environment.NewLine);
-						diag.Append(File.ReadAllText(file)).Append(Environment.NewLine).Append(Environment.NewLine);
-					}
-				}
-			}
-			catch (Exception) { }
-
-			// add the current config
-			if (this.Config != null)
-			{
-				using (var ms = new MemoryStream())
-				{
-					XmlWriterSettings settings = new XmlWriterSettings();
-					settings.Indent = true;
-					using (var xml = XmlWriter.Create(ms, settings))
-					{
-						this.Config.WriteXmlString(xml);
-					}
-
-					ms.Position = 0;
-
-					diag.Append("-- Config --").Append(Environment.NewLine);
-					diag.Append(new StreamReader(ms).ReadToEnd()).Append(Environment.NewLine).Append(Environment.NewLine);
-				}
-			}
+			diag.Append("OS: " + Environment.OSVersion.ToString()).Append(Environment.NewLine);
+			diag.Append(".NET: " + Environment.Version.ToString()).Append(Environment.NewLine).Append(Environment.NewLine);
 
 			// add the exception
 			if (ErrorException != null)
@@ -161,24 +102,14 @@ namespace WinAuth
 				Exception ex = ErrorException;
 				while (ex != null)
 				{
-					diag.Append("Stack: ").Append(ex.Message).Append(Environment.NewLine).Append(new System.Diagnostics.StackTrace(ex).ToString()).Append(Environment.NewLine);
+					diag.Append("Type: ").Append(ex.GetType().FullName).Append(Environment.NewLine);
+					diag.Append("Message: ").Append(ex.Message).Append(Environment.NewLine);
+					diag.Append("Stack: ").Append(new System.Diagnostics.StackTrace(ex).ToString()).Append(Environment.NewLine);
 					ex = ex.InnerException;
 				}
-				if (ErrorException is InvalidEncryptionException)
-				{
-					diag.Append("Plain: " + ((InvalidEncryptionException)ErrorException).Plain).Append(Environment.NewLine);
-					diag.Append("Password: " + ((InvalidEncryptionException)ErrorException).Password).Append(Environment.NewLine);
-					diag.Append("Encrypted: " + ((InvalidEncryptionException)ErrorException).Encrypted).Append(Environment.NewLine);
-					diag.Append("Decrypted: " + ((InvalidEncryptionException)ErrorException).Decrypted).Append(Environment.NewLine);
-				}
-				else if (ErrorException is InvalidSecretDataException)
+				if (ErrorException is InvalidSecretDataException)
 				{
 					diag.Append("EncType: " + ((InvalidSecretDataException)ErrorException).EncType).Append(Environment.NewLine);
-					diag.Append("Password: " + ((InvalidSecretDataException)ErrorException).Password).Append(Environment.NewLine);
-					foreach (string data in ((InvalidSecretDataException)ErrorException).Decrypted)
-					{
-						diag.Append("Data: " + data).Append(Environment.NewLine);
-					}
 				}
 			}
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2011 Colin Mackie.
  * This software is distributed under the terms of the GNU General Public License.
  *
@@ -70,14 +70,28 @@ namespace WinAuth
     private const int PBKDF2_KEYSIZE = 256;
 
     /// <summary>
-    /// Version for encrpytion changes
+    /// Version for encrpytion changes (WINAUTH3 legacy, WINAUTH4 current - VULN-01)
     /// </summary>
-    private static string ENCRYPTION_HEADER = Authenticator.ByteArrayToString(Encoding.UTF8.GetBytes("WINAUTH3"));
+    public static readonly string ENCRYPTION_HEADER = Authenticator.ByteArrayToString(Encoding.UTF8.GetBytes("WINAUTH3"));
+    public static readonly string ENCRYPTION_HEADER_V4 = Authenticator.ByteArrayToString(Encoding.UTF8.GetBytes("WINAUTH4"));
+    public const int SALT_LENGTH_V4 = 16;
+    public const int PBKDF2_ITERATIONS_V4 = 600_000;
+    public const int NONCE_LENGTH_V4 = 12;
+    public const int TAG_LENGTH_V4 = 16;
 
     /// <summary>
     /// Default number of digits in code
     /// </summary>
     public const int DEFAULT_CODE_DIGITS = 6;
+    /// <summary>
+    /// Safe XmlReaderSettings prohibiting DTD and external entity resolution (XXE prevention - VULN-11)
+    /// </summary>
+    public static readonly XmlReaderSettings SafeReaderSettings = new XmlReaderSettings
+    {
+      DtdProcessing = DtdProcessing.Prohibit,
+      XmlResolver = null
+    };
+
 
     /// <summary>
     /// Default period of 30s
@@ -598,7 +612,7 @@ namespace WinAuth
         string data = Authenticator.DecryptSequence(this.EncryptedData, this.PasswordType, password, null);
         using (MemoryStream ms = new MemoryStream(Authenticator.StringToByteArray(data)))
         {
-          XmlReader reader = XmlReader.Create(ms);
+          XmlReader reader = XmlReader.Create(ms, SafeReaderSettings);
           changed = this.ReadXml(reader, password) || changed;
         }
         this.RequiresPassword = false;
@@ -942,22 +956,37 @@ namespace WinAuth
     /// <param name="data">hex coded string sequence to decrypt</param>
     /// <param name="encryptedTypes">Encryption types</param>
     /// <param name="password">optional password</param>
-    /// <param name="yubidata">optional yubi data</param>
+    /// <param name="yubi">optional yubi instance</param>
     /// <param name="decode"></param>
     /// <returns>decrypted string sequence</returns>
     public static string DecryptSequence(string data, PasswordTypes encryptedTypes, string password, YubiKey yubi, bool decode = false)
     {
-      // check for encrpytion header
-      if (data.Length < ENCRYPTION_HEADER.Length || data.IndexOf(ENCRYPTION_HEADER) != 0)
+      if (string.IsNullOrEmpty(data))
       {
-        return DecryptSequenceNoHash(data, encryptedTypes, password, yubi, decode);
+        return data;
       }
 
-      // extract salt and hash
-      //using (var sha = new SHA256Managed())
+      if (data.StartsWith(ENCRYPTION_HEADER_V4))
+      {
+        return DecryptSequenceV4(data, encryptedTypes, password, yubi);
+      }
+
+      if (data.StartsWith(ENCRYPTION_HEADER))
+      {
+        return DecryptSequenceV3(data, encryptedTypes, password, yubi, decode);
+      }
+
+      // Do NOT fall back to unauthenticated decryption - reject invalid/missing header (VULN-01 fix)
+      throw new BadPasswordException("Missing or invalid encryption header");
+    }
+
+    /// <summary>
+    /// Decrypt legacy WINAUTH3 encrypted data
+    /// </summary>
+    private static string DecryptSequenceV3(string data, PasswordTypes encryptedTypes, string password, YubiKey yubi, bool decode = false)
+    {
       using (var sha = SafeHasher("SHA256"))
       {
-        // jump header
         int datastart = ENCRYPTION_HEADER.Length;
         string salt = data.Substring(datastart, Math.Min(SALT_LENGTH * 2, data.Length - datastart));
         datastart += salt.Length;
@@ -967,10 +996,11 @@ namespace WinAuth
 
         data = DecryptSequenceNoHash(data, encryptedTypes, password, yubi);
 
-        // check the hash
+        // check the hash using constant-time comparison (VULN-01 fix)
         byte[] compareplain = StringToByteArray(salt + data);
-        string comparehash = ByteArrayToString(sha.ComputeHash(compareplain));
-        if (string.Compare(comparehash, hash) != 0)
+        byte[] comparehash = sha.ComputeHash(compareplain);
+        byte[] expectedhash = StringToByteArray(hash);
+        if (!CryptographicOperations.FixedTimeEquals(comparehash, expectedhash))
         {
           throw new BadPasswordException();
         }
@@ -1083,44 +1113,339 @@ namespace WinAuth
     }
 
     /// <summary>
-    /// Downgrade SHA256 or MD5 to SHA1 to be FIPS compliant
+    /// Safe hasher returning modern standard hash algorithms without SHA1 downgrade (VULN-18)
     /// </summary>
     public static HashAlgorithm SafeHasher(string name)
     {
+      if (name == "SHA512")
+      {
+        return SHA512.Create();
+      }
+      if (name == "SHA256")
+      {
+        return SHA256.Create();
+      }
+      if (name == "MD5")
+      {
+        return MD5.Create();
+      }
+
+      return SHA256.Create();
+    }
+
+    /// <summary>
+    /// Encrypt a string sequence using WINAUTH4 (AesGcm AEAD with PBKDF2 600,000 iter and AAD integrity protection - VULN-01)
+    /// </summary>
+    public static string EncryptSequence(string data, PasswordTypes passwordType, string password, YubiKey yubi)
+    {
+      return EncryptSequenceV4(data, passwordType, password, yubi);
+    }
+
+    /// <summary>
+    /// Modern WINAUTH4 authenticated encryption sequence
+    /// </summary>
+    public static string EncryptSequenceV4(string data, PasswordTypes passwordType, string password, YubiKey yubi)
+    {
+      byte[] plainBytes = StringToByteArray(data);
+      byte[] salt = RandomNumberGenerator.GetBytes(SALT_LENGTH_V4);
+      byte[] nonce = RandomNumberGenerator.GetBytes(NONCE_LENGTH_V4);
+      byte[] tag = new byte[TAG_LENGTH_V4];
+      byte[] ciphertext = new byte[plainBytes.Length];
+
+      byte[] key = null;
+      byte hasInnerKey = 0;
+      byte[] innerKey = null;
+
       try
       {
-        if (name == "SHA512")
+        if ((passwordType & PasswordTypes.Explicit) != 0)
         {
-          return SHA512.Create();
+          if (string.IsNullOrEmpty(password))
+          {
+            throw new EncryptedSecretDataException();
+          }
+          byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+          try
+          {
+            key = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, PBKDF2_ITERATIONS_V4, HashAlgorithmName.SHA256, 32);
+          }
+          finally
+          {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+          }
         }
-        if (name == "SHA256")
+        else if ((passwordType & (PasswordTypes.YubiKeySlot1 | PasswordTypes.YubiKeySlot2)) != 0)
         {
-          return SHA256.Create();
+          if (yubi == null || yubi.Info.Status.VersionMajor == 0)
+          {
+            throw new BadYubiKeyException("YubiKey required for encryption");
+          }
+          int slot = ((passwordType & PasswordTypes.YubiKeySlot1) != 0 ? 1 : 2);
+          byte[] challenge = RandomNumberGenerator.GetBytes(32);
+          byte[] response = yubi.ChallengeResponse(slot, challenge);
+          key = HKDF.DeriveKey(HashAlgorithmName.SHA256, response, 32, salt);
+          CryptographicOperations.ZeroMemory(response);
         }
-        if (name == "MD5")
+        else
         {
-          return MD5.Create();
+          // Passwordless (Machine / User DPAPI only): Generate inner AES-GCM key and protect inside DPAPI payload
+          hasInnerKey = 1;
+          innerKey = RandomNumberGenerator.GetBytes(32);
+          key = new byte[32];
+          Buffer.BlockCopy(innerKey, 0, key, 0, 32);
         }
 
-        return SHA1.Create();
+        // AAD: [WINAUTH4 (8 bytes)] + [typeBytes (4 bytes)] + [iterBytes (4 bytes)] + [salt (16 bytes)]
+        byte[] headerBytes = Encoding.UTF8.GetBytes("WINAUTH4");
+        byte[] typeBytes = BitConverter.GetBytes((int)passwordType);
+        byte[] iterBytes = BitConverter.GetBytes(PBKDF2_ITERATIONS_V4);
+        if (BitConverter.IsLittleEndian)
+        {
+          Array.Reverse(typeBytes);
+          Array.Reverse(iterBytes);
+        }
+
+        byte[] aad = new byte[headerBytes.Length + 4 + 4 + SALT_LENGTH_V4];
+        Buffer.BlockCopy(headerBytes, 0, aad, 0, headerBytes.Length);
+        Buffer.BlockCopy(typeBytes, 0, aad, headerBytes.Length, 4);
+        Buffer.BlockCopy(iterBytes, 0, aad, headerBytes.Length + 4, 4);
+        Buffer.BlockCopy(salt, 0, aad, headerBytes.Length + 8, SALT_LENGTH_V4);
+
+        using (AesGcm aesGcm = new AesGcm(key, TAG_LENGTH_V4))
+        {
+          aesGcm.Encrypt(nonce, plainBytes, ciphertext, tag, aad);
+        }
+
+        // Payload structure:
+        // [typeBytes (4)] + [iterBytes (4)] + [salt (16)] + [nonce (12)] + [tag (16)] + [hasInnerKey (1)] + [innerKey (32 if hasInnerKey)] + [ciphertext]
+        int extraKeyLen = (hasInnerKey == 1 ? 32 : 0);
+        byte[] payload = new byte[4 + 4 + SALT_LENGTH_V4 + NONCE_LENGTH_V4 + TAG_LENGTH_V4 + 1 + extraKeyLen + ciphertext.Length];
+        int offset = 0;
+        Buffer.BlockCopy(typeBytes, 0, payload, offset, 4);
+        offset += 4;
+        Buffer.BlockCopy(iterBytes, 0, payload, offset, 4);
+        offset += 4;
+        Buffer.BlockCopy(salt, 0, payload, offset, SALT_LENGTH_V4);
+        offset += SALT_LENGTH_V4;
+        Buffer.BlockCopy(nonce, 0, payload, offset, NONCE_LENGTH_V4);
+        offset += NONCE_LENGTH_V4;
+        Buffer.BlockCopy(tag, 0, payload, offset, TAG_LENGTH_V4);
+        offset += TAG_LENGTH_V4;
+        payload[offset] = hasInnerKey;
+        offset += 1;
+        if (hasInnerKey == 1)
+        {
+          Buffer.BlockCopy(innerKey, 0, payload, offset, 32);
+          offset += 32;
+        }
+        Buffer.BlockCopy(ciphertext, 0, payload, offset, ciphertext.Length);
+
+        // Apply DPAPI User / Machine protections if specified
+        if ((passwordType & PasswordTypes.User) != 0)
+        {
+          payload = ProtectedData.Protect(payload, null, DataProtectionScope.CurrentUser);
+        }
+        if ((passwordType & PasswordTypes.Machine) != 0)
+        {
+          payload = ProtectedData.Protect(payload, null, DataProtectionScope.LocalMachine);
+        }
+
+        return ENCRYPTION_HEADER_V4 + ByteArrayToString(payload);
       }
-      catch (Exception)
+      finally
       {
-        // FIPS only allows SHA1 before Windows 10
-        return SHA1.Create();
+        if (key != null)
+        {
+          CryptographicOperations.ZeroMemory(key);
+        }
+        if (innerKey != null)
+        {
+          CryptographicOperations.ZeroMemory(innerKey);
+        }
+        CryptographicOperations.ZeroMemory(plainBytes);
       }
     }
 
-    public static string EncryptSequence(string data, PasswordTypes passwordType, string password, YubiKey yubi)
+    /// <summary>
+    /// Modern WINAUTH4 authenticated decryption sequence
+    /// </summary>
+    public static string DecryptSequenceV4(string data, PasswordTypes encryptedTypes, string password, YubiKey yubi)
     {
-      // get hash of original
+      if (!data.StartsWith(ENCRYPTION_HEADER_V4))
+      {
+        throw new BadPasswordException("Invalid encryption header, expected WINAUTH4");
+      }
+
+      byte[] payload = StringToByteArray(data.Substring(ENCRYPTION_HEADER_V4.Length));
+
+      // Reverse DPAPI
+      if ((encryptedTypes & PasswordTypes.Machine) != 0)
+      {
+        try
+        {
+          payload = ProtectedData.Unprotect(payload, null, DataProtectionScope.LocalMachine);
+        }
+        catch (Exception ex)
+        {
+          throw new BadPasswordException("Cannot decrypt Machine protected data", ex);
+        }
+      }
+      if ((encryptedTypes & PasswordTypes.User) != 0)
+      {
+        try
+        {
+          payload = ProtectedData.Unprotect(payload, null, DataProtectionScope.CurrentUser);
+        }
+        catch (Exception ex)
+        {
+          throw new BadPasswordException("Cannot decrypt User protected data", ex);
+        }
+      }
+
+      int minHeaderLen = 4 + 4 + SALT_LENGTH_V4 + NONCE_LENGTH_V4 + TAG_LENGTH_V4 + 1;
+      if (payload.Length < minHeaderLen)
+      {
+        throw new BadPasswordException("Corrupted WINAUTH4 payload: too short");
+      }
+
+      int offset = 0;
+      byte[] typeBytes = new byte[4];
+      Buffer.BlockCopy(payload, offset, typeBytes, 0, 4);
+      offset += 4;
+
+      byte[] iterBytes = new byte[4];
+      Buffer.BlockCopy(payload, offset, iterBytes, 0, 4);
+      offset += 4;
+
+      byte[] salt = new byte[SALT_LENGTH_V4];
+      Buffer.BlockCopy(payload, offset, salt, 0, SALT_LENGTH_V4);
+      offset += SALT_LENGTH_V4;
+
+      byte[] nonce = new byte[NONCE_LENGTH_V4];
+      Buffer.BlockCopy(payload, offset, nonce, 0, NONCE_LENGTH_V4);
+      offset += NONCE_LENGTH_V4;
+
+      byte[] tag = new byte[TAG_LENGTH_V4];
+      Buffer.BlockCopy(payload, offset, tag, 0, TAG_LENGTH_V4);
+      offset += TAG_LENGTH_V4;
+
+      byte hasInnerKey = payload[offset];
+      offset += 1;
+
+      byte[] innerKey = null;
+      if (hasInnerKey == 1)
+      {
+        if (payload.Length < offset + 32)
+        {
+          throw new BadPasswordException("Corrupted WINAUTH4 payload: missing inner key");
+        }
+        innerKey = new byte[32];
+        Buffer.BlockCopy(payload, offset, innerKey, 0, 32);
+        offset += 32;
+      }
+
+      byte[] ciphertext = new byte[payload.Length - offset];
+      Buffer.BlockCopy(payload, offset, ciphertext, 0, ciphertext.Length);
+
+      byte[] tempIter = new byte[4];
+      Buffer.BlockCopy(iterBytes, 0, tempIter, 0, 4);
+      if (BitConverter.IsLittleEndian)
+      {
+        Array.Reverse(tempIter);
+      }
+      int iterations = BitConverter.ToInt32(tempIter, 0);
+      if (iterations <= 0 || iterations > 5_000_000)
+      {
+        throw new BadPasswordException("Invalid PBKDF2 iterations in WINAUTH4 header");
+      }
+
+      // Reconstruct AAD: [WINAUTH4 (8)] + [typeBytes (4)] + [iterBytes (4)] + [salt (16)]
+      byte[] headerBytes = Encoding.UTF8.GetBytes("WINAUTH4");
+      byte[] aad = new byte[headerBytes.Length + 4 + 4 + SALT_LENGTH_V4];
+      Buffer.BlockCopy(headerBytes, 0, aad, 0, headerBytes.Length);
+      Buffer.BlockCopy(typeBytes, 0, aad, headerBytes.Length, 4);
+      Buffer.BlockCopy(iterBytes, 0, aad, headerBytes.Length + 4, 4);
+      Buffer.BlockCopy(salt, 0, aad, headerBytes.Length + 8, SALT_LENGTH_V4);
+
+      byte[] key = null;
+      byte[] plainBytes = new byte[ciphertext.Length];
+      try
+      {
+        if (hasInnerKey == 1)
+        {
+          key = new byte[32];
+          Buffer.BlockCopy(innerKey, 0, key, 0, 32);
+        }
+        else if ((encryptedTypes & PasswordTypes.Explicit) != 0)
+        {
+          if (string.IsNullOrEmpty(password))
+          {
+            throw new EncryptedSecretDataException();
+          }
+          byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+          try
+          {
+            key = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, iterations, HashAlgorithmName.SHA256, 32);
+          }
+          finally
+          {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+          }
+        }
+        else if ((encryptedTypes & (PasswordTypes.YubiKeySlot1 | PasswordTypes.YubiKeySlot2)) != 0)
+        {
+          if (yubi == null || yubi.Info.Status.VersionMajor == 0)
+          {
+            throw new BadYubiKeyException("YubiKey required for decryption");
+          }
+          int slot = ((encryptedTypes & PasswordTypes.YubiKeySlot1) != 0 ? 1 : 2);
+          byte[] challenge = new byte[32];
+          Buffer.BlockCopy(salt, 0, challenge, 0, Math.Min(32, salt.Length));
+          byte[] response = yubi.ChallengeResponse(slot, challenge);
+          key = HKDF.DeriveKey(HashAlgorithmName.SHA256, response, 32, salt);
+          CryptographicOperations.ZeroMemory(response);
+        }
+        else
+        {
+          throw new BadPasswordException("Missing key for decryption");
+        }
+
+        using (AesGcm aesGcm = new AesGcm(key, TAG_LENGTH_V4))
+        {
+          aesGcm.Decrypt(nonce, ciphertext, tag, plainBytes, aad);
+        }
+
+        return ByteArrayToString(plainBytes);
+      }
+      catch (CryptographicException ex)
+      {
+        throw new BadPasswordException("Decryption failed or data was tampered with", ex);
+      }
+      finally
+      {
+        if (key != null)
+        {
+          CryptographicOperations.ZeroMemory(key);
+        }
+        if (innerKey != null)
+        {
+          CryptographicOperations.ZeroMemory(innerKey);
+        }
+        CryptographicOperations.ZeroMemory(plainBytes);
+      }
+    }
+
+    /// <summary>
+    /// Legacy WINAUTH3 encryption sequence (retained for backward compatibility and testing)
+    /// </summary>
+    public static string EncryptSequenceV3(string data, PasswordTypes passwordType, string password, YubiKey yubi)
+    {
       var random = new RNGCryptoServiceProvider();
       byte[] saltbytes = new byte[SALT_LENGTH];
       random.GetBytes(saltbytes);
       string salt = ByteArrayToString(saltbytes);
 
       string hash;
-      //using (var sha = new SHA256Managed())
       using (var sha = SafeHasher("SHA256"))
       {
         byte[] plain = StringToByteArray(salt + data);
@@ -1135,7 +1460,6 @@ namespace WinAuth
           random = new RNGCryptoServiceProvider();
           random.GetBytes(seed);
 
-          // we encrypt the data using the hash of a random string from the YubiKey
           int slot = ((passwordType & PasswordTypes.YubiKeySlot1) != 0 ? 1 : 2);
           yubi.YubiData.Data = yubi.ChallengeResponse(slot, seed);
           yubi.YubiData.Seed = Authenticator.ByteArrayToString(seed);
@@ -1143,43 +1467,36 @@ namespace WinAuth
 
         byte[] key = yubi.YubiData.Data;
         string encrypted = Encrypt(data, key);
-
-        // test the encryption
         string decrypted = Decrypt(encrypted, key);
         if (string.Compare(data, decrypted) != 0)
         {
-          throw new InvalidEncryptionException(data, password, encrypted, decrypted);
+          throw new InvalidEncryptionException("V3 encryption test failed");
         }
         data = yubi.YubiData.Seed + encrypted;
       }
       if ((passwordType & PasswordTypes.Explicit) != 0)
       {
         string encrypted = Encrypt(data, password);
-
-        // test the encryption
         string decrypted = Decrypt(encrypted, password, true);
         if (string.Compare(data, decrypted) != 0)
         {
-          throw new InvalidEncryptionException(data, password, encrypted, decrypted);
+          throw new InvalidEncryptionException("V3 encryption test failed");
         }
         data = encrypted;
       }
       if ((passwordType & PasswordTypes.User) != 0)
       {
-        // we encrypt the data using the Windows User account key
         byte[] plain = StringToByteArray(data);
         byte[] cipher = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
         data = ByteArrayToString(cipher);
       }
       if ((passwordType & PasswordTypes.Machine) != 0)
       {
-        // we encrypt the data using the Local Machine account key
         byte[] plain = StringToByteArray(data);
         byte[] cipher = ProtectedData.Protect(plain, null, DataProtectionScope.LocalMachine);
         data = ByteArrayToString(cipher);
       }
 
-      // prepend the salt + hash
       return ENCRYPTION_HEADER + salt + hash + data;
     }
 
@@ -1219,6 +1536,14 @@ namespace WinAuth
     public static string Encrypt(string plain, byte[] key)
     {
       byte[] inBytes = Authenticator.StringToByteArray(plain);
+
+      // Legacy Blowfish maximum key length is 56 bytes (448 bits) - compatibility with BouncyCastle 2.x
+      if (key.Length > 56)
+      {
+        byte[] truncatedKey = new byte[56];
+        Array.Copy(key, 0, truncatedKey, 0, 56);
+        key = truncatedKey;
+      }
 
       // get our cipher
       BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new BlowfishEngine(), new ISO10126d2Padding());
@@ -1280,6 +1605,14 @@ namespace WinAuth
       // extract the actual data to be decrypted
       byte[] inBytes = Authenticator.StringToByteArray(data.Substring(SALT_LENGTH * 2));
 
+      // Legacy Blowfish maximum key length is 56 bytes (448 bits) - compatibility with BouncyCastle 2.x
+      if (key.Length > 56)
+      {
+        byte[] truncatedKey = new byte[56];
+        Array.Copy(key, 0, truncatedKey, 0, 56);
+        key = truncatedKey;
+      }
+
       // get cipher
       BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new BlowfishEngine(), new ISO10126d2Padding());
       cipher.Init(false, new KeyParameter(key));
@@ -1318,6 +1651,14 @@ namespace WinAuth
     {
       // the actual data to be decrypted
       byte[] inBytes = Authenticator.StringToByteArray(data);
+
+      // Legacy Blowfish maximum key length is 56 bytes (448 bits) - compatibility with BouncyCastle 2.x
+      if (key.Length > 56)
+      {
+        byte[] truncatedKey = new byte[56];
+        Array.Copy(key, 0, truncatedKey, 0, 56);
+        key = truncatedKey;
+      }
 
       // get cipher
       BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new BlowfishEngine(), new ISO10126d2Padding());

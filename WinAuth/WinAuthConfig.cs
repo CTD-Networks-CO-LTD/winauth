@@ -838,7 +838,7 @@ namespace WinAuth
 
 				using (MemoryStream ms = new MemoryStream(Authenticator.StringToByteArray(data)))
 				{
-          reader = XmlReader.Create(ms);
+          reader = XmlReader.Create(ms, Authenticator.SafeReaderSettings);
           changed = ReadXml(reader, password);
         }
 
@@ -911,7 +911,7 @@ namespace WinAuth
 
 									using (MemoryStream ms = new MemoryStream(plain))
 									{
-										var datareader = XmlReader.Create(ms);
+										var datareader = XmlReader.Create(ms, Authenticator.SafeReaderSettings);
 										changed = ReadXmlInternal(datareader, password) || changed;
 									}
 

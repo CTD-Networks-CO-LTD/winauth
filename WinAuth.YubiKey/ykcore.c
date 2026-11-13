@@ -286,7 +286,9 @@ int yk_write_command(YK_KEY *yk, YK_CONFIG *cfg, uint8_t command,
 	if (acc_code)
 		memcpy(buf + sizeof(YK_CONFIG), acc_code, ACC_CODE_SIZE);
 
-	return _yk_write(yk, command, buf, sizeof(buf));
+	int write_res = _yk_write(yk, command, buf, sizeof(buf));
+	SecureZeroMemory(buf, sizeof(buf));
+	return write_res;
 
 }
 
@@ -711,16 +713,24 @@ int yk_write_to_key(YK_KEY *yk, uint8_t slot, const void *buf, int bufcount)
 		 * next part can be sent.
 		 */
 		if (! yk_wait_for_key_status(yk, slot, 0, WAIT_FOR_WRITE_FLAG,
-					     false, SLOT_WRITE_FLAG, NULL))
+					     false, SLOT_WRITE_FLAG, NULL)) {
+			SecureZeroMemory(&frame, sizeof(frame));
+			SecureZeroMemory(repbuf, sizeof(repbuf));
 			return 0;
+		}
 #ifdef YK_DEBUG
 		_yk_hexdump(repbuf, FEATURE_RPT_SIZE);
 #endif
 		if (!_ykusb_write(yk, REPORT_TYPE_FEATURE, 0,
-				  (char *)repbuf, FEATURE_RPT_SIZE))
+				  (char *)repbuf, FEATURE_RPT_SIZE)) {
+			SecureZeroMemory(&frame, sizeof(frame));
+			SecureZeroMemory(repbuf, sizeof(repbuf));
 			return 0;
+		}
 	}
 
+	SecureZeroMemory(&frame, sizeof(frame));
+	SecureZeroMemory(repbuf, sizeof(repbuf));
 	return 1;
 }
 

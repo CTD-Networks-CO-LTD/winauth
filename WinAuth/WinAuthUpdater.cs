@@ -19,7 +19,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Deployment.Application;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -61,6 +60,11 @@ namespace WinAuth
 		/// Optional changes
 		/// </summary>
 		public string Changes;
+		/// <summary>
+		/// SHA-256 hash of the release package for verification (VULN-15)
+		/// </summary>
+		public string Sha256;
+
 
 		/// <summary>
 		/// Create the new version instance
@@ -388,8 +392,9 @@ namespace WinAuth
 		/// <returns>new WinAuthVersionInfo object</returns>
 		private WinAuthVersionInfo ParseGetLatestVersion(string result)
 		{
-			// load xml document and pull out nodes
+			// load xml document and pull out nodes (XXE prevention - VULN-11)
 			XmlDocument xml = new XmlDocument();
+			xml.XmlResolver = null;
 			xml.LoadXml(result);
 			var node = xml.SelectSingleNode("//version");
 
@@ -428,6 +433,12 @@ namespace WinAuth
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
 				{
 					latestversion.Changes = node.InnerText;
+				node = xml.SelectSingleNode("//sha256");
+				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
+				{
+					latestversion.Sha256 = node.InnerText.Trim();
+				}
+
 				}
 
 				return latestversion;
