@@ -19,11 +19,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
       - name: Build WinAuth.YubiKey Native DLLs (x86 / x64)
+        shell: pwsh
         run: |
           msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x86.vcxproj" /p:Configuration=Release /p:Platform=Win32
           msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x64.vcxproj" /p:Configuration=Release /p:Platform=x64
@@ -34,6 +37,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore and Test
+        shell: pwsh
         run: |
           dotnet restore WinAuth.sln
           dotnet test WinAuth.sln -c Release --no-restore
@@ -74,8 +78,8 @@ jobs:
           $hash = (Get-FileHash -LiteralPath "./$zipName" -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zipName" | Set-Content -LiteralPath "./$zipName.sha256" -Encoding ASCII
 
-          "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
-          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          Add-Content -Path $env:GITHUB_ENV -Value "ZIP_NAME=$zipName"
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$tag"
 
       - name: Upload Workflow Artifact
         uses: actions/upload-artifact@v4
@@ -84,6 +88,7 @@ jobs:
           path: |
             ./${{ env.ZIP_NAME }}
             ./${{ env.ZIP_NAME }}.sha256
+          overwrite: true
 
       - name: Upload Assets to GitHub Release
         if: github.event_name == 'release'
@@ -92,3 +97,4 @@ jobs:
         shell: pwsh
         run: |
           gh release upload "$env:RELEASE_TAG" "./$env:ZIP_NAME" "./$env:ZIP_NAME.sha256" --clobber
+
