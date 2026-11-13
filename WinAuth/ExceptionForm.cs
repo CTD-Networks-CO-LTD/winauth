@@ -86,7 +86,9 @@ namespace WinAuth
 
 			Version version;
 #if NETFX_4
-			if (Version.TryParse(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion, out version) == true)
+			string executablePath = Environment.ProcessPath;
+			string fileVersion = string.IsNullOrEmpty(executablePath) == false ? FileVersionInfo.GetVersionInfo(executablePath).FileVersion : null;
+			if (Version.TryParse(fileVersion, out version) == true || (version = Assembly.GetExecutingAssembly().GetName().Version) != null)
 			{
 				diag.Append("Version: " + version.ToString(4)).Append(Environment.NewLine);
 			}

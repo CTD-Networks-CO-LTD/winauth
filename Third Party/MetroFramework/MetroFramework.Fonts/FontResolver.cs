@@ -71,7 +71,7 @@ namespace MetroFramework.Fonts
                     int bytes = (int)fontStream.Length;
                     data = Marshal.AllocCoTaskMem(bytes);
                     byte[] fontdata = new byte[bytes];
-                    fontStream.Read(fontdata, 0, bytes);
+                    fontStream.ReadExactly(fontdata, 0, bytes);
                     Marshal.Copy(fontdata, 0, data, bytes);
                     fontCollection.AddMemoryFont(data, bytes);
                     return fontCollection.Families[fontCollection.Families.Length - 1];

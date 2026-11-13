@@ -202,7 +202,7 @@ namespace WinAuth
 				string dir = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), WinAuthMain.APPLICATION_NAME);
 				if (Directory.Exists(dir) == false)
 				{
-					dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+					dir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
 				}
 				fileTarget.FileName = Path.Combine(dir, "winauth.log");
 				fileTarget.Layout = @"${longdate} ${assembly-version} ${logger} ${message} ${exception:format=tostring}";

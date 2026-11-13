@@ -1325,10 +1325,12 @@ namespace WinAuth
 				Array.Copy(Encoding.UTF8.GetBytes(tag), 0, buffer, 8, bufferSize - 8);
 			}
 
-			HMACSHA1 hmac = new HMACSHA1(b64secret, true);
-			byte[] hash = hmac.ComputeHash(buffer);
+			using (HMACSHA1 hmac = new HMACSHA1(b64secret))
+			{
+				byte[] hash = hmac.ComputeHash(buffer);
 
-			return Convert.ToBase64String(hash, Base64FormattingOptions.None);
+				return Convert.ToBase64String(hash, Base64FormattingOptions.None);
+			}
 		}
 
 #region Web Request
