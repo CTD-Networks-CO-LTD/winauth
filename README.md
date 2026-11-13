@@ -1,145 +1,98 @@
-# Windows Authenticator
+# Windows Authenticator (WinAuth)
 
-*WinAuth is a portable, open-source Authenticator for Windows that provides counter or time-based RFC 6238 authenticators and common implementations, such as the Google Authenticator. WinAuth can be used with many Bitcoin trading websites as well as games, supporting Battle.net (World of Warcraft, Hearthstone, Heroes of the Storm, Diablo), Guild Wars 2, Glyph (Rift and ArcheAge), WildStar, RuneScape, SWTOR and Steam.*
+*WinAuth は、RFC 6238（時刻ベース TOTP）および RFC 4226（カウンターベース HOTP）に準拠した、Windows 向けのポータブルなオープンソース二要素認証（2FA）クライアントです。Google Authenticator 互換の各種 Web サービスや暗号資産取引所のほか、Steam、Battle.net、Guild Wars 2、Glyph（Rift / ArcheAge）など多様なサービスに対応しています。*
 
-----
+本リポジトリは、Colin Mackie 氏によるオリジナルの WinAuth をベースに、CTD Networks Co., Ltd. にて **.NET 10 への移行**、**暗号基盤の刷新（WINAUTH4）**、および **セキュリティ脆弱性の改修** を行ったバージョン（v4.0 以降）です。
 
-## Download Latest Beta Version
+---
 
-The latest beta version is WinAuth 3.6 and is available from the [releases](https://github.com/winauth/winauth/releases) page. Please do not use this version unless you are testing new features.
+## 主な機能・特徴
 
-This will likely be the last version of WinAuth when released as 3.7. It has reached the end of its useful life and requires a massive UI overhaul. My thanks to everyone who has used WinAuth, provided fixes and useful suggestions.
+* **標準規格および主要サービスへの対応**
+  * 時刻ベースの RFC 6238（TOTP：Google Authenticator、Microsoft Authenticator、Okta Verify 等）およびカウンターベースの RFC 4226（HOTP）に対応
+  * Steam（Steam Guard およびトレード確認機能）、Battle.net、Guild Wars 2、Trion / Glyph などの各種ゲーム・Web サービスに対応
+* **効率的な操作性**
+  * 複数の認証器（ワンタイムパスワード）を一覧表示し、自動更新またはオンデマンドでコードを表示
+  * システムトレイ常駐、ホットキー割り当てによるコード通知・自動キーボード入力・クリップボードコピーに対応
+  * 標準アイコンの選択やカスタムアイコンの設定が可能
+  * `otpauth://` URI 形式等でのインポート・エクスポートに対応
+* **ポータブル運用に対応**
+  * インストーラー不要で単一の `WinAuth.exe` から実行可能
+  * 実行ファイルと同じフォルダに設定ファイルを配置することで、レジストリや他フォルダを変更しないポータブルモードで動作
+* **強化されたセキュリティと後方互換性**
+  * **WINAUTH4 暗号基盤**: PBKDF2（600,000 反復）による鍵導出と **AES-256-GCM**（認証付き暗号）により、秘密鍵データの機密性と完全性（改ざん検知）を保護
+  * ユーザー設定のパスワード保護に加え、Windows アカウント／マシンへの紐付け（DPAPI）、YubiKey によるハードウェア保護、認証器単位での個別パスワード設定に対応
+  * **後方互換性**: 従来の WinAuth 3 系（WINAUTH3 形式）で作成された設定ファイル（`winauth.xml`）もそのまま読み込み可能
+  * XXE（XML 外部エンティティ）攻撃対策など各種セキュリティ強化を実施済み
 
-----
+---
 
-## Download Latest Stable Version (WinAuth 3.5)
+## 動作環境
 
-WinAuth provides an alternative solution to combine various two-factor authenticator services in one convenient place.
+* **対応 OS**: Windows 10 / Windows 11（x64）
+* **必須ランタイム**: [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)（Windows デスクトップ ランタイム 10.0）
 
-This is the latest stable version and can be downloaded from the [releases](https://github.com/winauth/winauth/releases) page, or directly from:
+---
 
-[Latest Version (WinAuth-3.5.1)](https://github.com/winauth/winauth/releases/download/3.5.1/WinAuth-3.5.1.zip)
+## ダウンロードと使い方
 
-There is also a [.Net 3.5 build of WinAuth](https://github.com/winauth/winauth/releases/download/3.5.1/WinAuth-3.5.1-NET35.zip) that can be run on Windows 7 installations "out of the box".
+### ダウンロード
+最新版のバイナリは本リポジトリの [Releases](https://github.com/CTD-Networks-CO-LTD/winauth/releases) ページからダウンロードできます（`WinAuth-<バージョン>.zip` および検証用の `.sha256` チェックサムファイルが提供されます）。
 
-<img src="https://winauth.github.io/winauth/images/winauth3-preview.png" alt="WinAuth3 Preview" />
+### 基本的な使い方
+1. 事前に .NET 10 Desktop Runtime がインストールされていることを確認します。
+2. ダウンロードした ZIP ファイルを展開し、`WinAuth.exe` を任意のフォルダに配置して起動します（インストール作業は不要です）。
+3. **［Add］** ボタンをクリックし、認証器の追加またはインポートを行います。
+4. 登録した認証器を右クリックすると、コードのコピーや詳細設定などのコンテキストメニューが表示されます。
+5. 自動更新を無効にしている場合は、右側のアイコンをクリックすると現在のコードが表示されます。
+6. 歯車（オプション）アイコンからアプリケーション全体の設定を行えます。
 
-Features include:
+---
 
-  * Support for time-based RFC 6238 authenticators (e.g. Google Authenticator) and HOTP counter-based authenticators
-  * Supports Battle.net (World of Warcraft, Hearthstone, Heroes of the Storm, Diablo III), GuildWars 2, Trion / Glyph (Rift, ArcheAge), RuneScape, WildStar, SWTOR and Steam
-  * Supports Steam's SteamGuard and trading confirmations
-  * Supports many Bitcoin trading websites such as Coinbase, Gemini, Circle, Bitstamp, BTC-e, Cryptsy
-  * Displays multiple authenticators simultaneously
-  * Codes displayed and refreshed automatically or on demand
-  * Data is protected with your password, locked to Windows machine or account, or a YubiKey
-  * Additional password protection per authenticator
-  * Restore features for supported authenticators, e.g. Battle.net and Rift
-  * Selection of standard or custom icons
-  * Hot-key binding with standard or custom actions, such as code notification, keyboard input, and copy to clipboard
-  * Portable mode preventing changes to other files or registry settings
-  * Import and export in UriKeyFormat and from Authenticator Plus for Android 
+## ソースコードからのビルド
 
-#### Updates
+ソースコードからビルドおよび単体テストを実行するには、**.NET 10 SDK** が必要です。
 
-  * 3.5.1 - Issue#366: fix spamming notifications when Steam is down. Hide confim/cancel all buttons on login.
+```powershell
+dotnet restore WinAuth.sln
+dotnet build WinAuth.sln -c Release
+dotnet test WinAuth.sln -c Release
+```
 
-### How To Use
+YubiKey ネイティブ DLL のビルド方法や単一実行ファイル（`PublishSingleFile`）の発行手順など、詳細は [COMPILING.md](COMPILING.md) を参照してください。
 
-Use the following link to download the latest version of WinAuth, or go to the [Releases](https://github.com/winauth/winauth/releases) page.
+---
 
-Requires [Microsoft .Net 4.5](http://www.microsoft.com/en-us/download/details.aspx?id=30653)
+## よくある質問（FAQ）
 
-To use:
-  * Download the latest stable version of WinAuth
-  * There is no installation required, just open the zip file and extract the WinAuth.exe file to anywhere on your computer
-  * Double-click or run WinAuth.exe
-  * Click the Add button to add or import an authenticator
-  * Right-click any authenticator to bring up context menu
-  * Click the icon on the right to show the current code, if auto-refresh is not enabled
-  * Click cog/options icon for program options
+#### 安全ですか？
+二要素認証はセキュリティの層を追加するものであり、単体で 100% の安全を保証するものではありません。物理的に独立したハードウェアトークン等と比較すると PC 上で動作するソフトウェアには固有のリスクがありますが、WinAuth では秘密鍵データを暗号化されたファイル（AES-256-GCM / DPAPI 等）として保護し、PC 上で可能な限り安全に管理できるよう設計されています。マスターパスワードの設定および設定ファイルの適切な管理を強く推奨します。
 
-To compile and build from source:
-  * Download source code file or clone project
-  * Requires Microsoft Visual Studio 2015
-  * any other dependencies are included in the source tree in the 3rd Party folder
-  * Use [ILMerge](http://research.microsoft.com/en-us/people/mbarnett/ilmerge.aspx ) to combine assemblies into one single exe file
+#### ウイルス・マルウェア・キーロガーなどの心配はありませんか？
+WinAuth はオープンソースソフトウェアとして公開されており、誰でもソースコードを検証し、自身でビルドすることができます。
+外部のサードパーティサーバーへ個人情報やアカウント情報を送信することはなく、他の実行ファイルを勝手にインストールすることもありません。
 
-### New Features
+#### 認証器のデータはどこに保存されますか？
+クラウドや外部サーバーには一切保存されません。デフォルトでは Windows のローミングプロファイル配下（`%AppData%\WinAuth\winauth.xml`、例: `C:\Users\<ユーザー名>\AppData\Roaming\WinAuth\winauth.xml`）に保存されます。
+また、`winauth.xml` を `WinAuth.exe` と同じフォルダに配置する（ポータブルモード）か、起動時のコマンドライン引数で任意のファイルパスを指定して使用することも可能です。PC の故障や紛失に備え、定期的にバックアップを取得してください。
 
-Version 3.5 includes Steam trade confirmations.
+---
 
-<img src="https://winauth.github.io/winauth/images/2013/07/steamconf1.png" alt="steamconf" class="aligncenter" />
+## 商標について
 
-If you registered SteamGuard with WinAuth 3.3.7 or earlier, you will need to remove it from your Steam account and add it again. This is because WinAuth 3.3 only kept information relevant to generating the SteamGuard authenticator codes, however, confirmations needs more information.
+本文中に記載されている製品名・サービス名（Blizzard、Battle.net、World of Warcraft、Diablo、ArenaNet、Guild Wars 2、Trion、Rift、Google、Microsoft、Okta、Steam 等）は、各社の商標または登録商標です。
 
-You can go into the normal Steam client, choose Account Details, then click "Manage Steam Guard". Click the Remove Authenticator button and enter the recovery code (aka revocation code - found from right-clicking in WinAuth).
+---
 
-Once the new authenticator is added, you will have an extra option when right-clicking called "Confirmations...". This will login with your username/password and show your current trade confirmations. You can click to view more details, and use the buttons to accept or reject them.
+## 著作権・クレジット
 
-If you choose "remember me", WinAuth will keep you logged in (does not keep your username/password) so you can quickly go into Confirmations again.
+* オリジナル開発者: Colin Mackie（Copyright © 2010-2017 Colin Mackie）
+* .NET 10 移行・セキュリティ改修: CTD Networks Co., Ltd.（Copyright © 2013-2026 Colin Mackie / Modified 2026 CTD Networks Co., Ltd.）
 
-----
+---
 
-## COMMON QUESTIONS
+## ライセンス
 
-#### Is it secure? Is it safe?
+本プログラムはフリーソフトウェアです。Free Software Foundation が公表した **GNU General Public License（バージョン 3、またはそれ以降のバージョン）** の条件の下で再頒布および改変することができます。
 
-All authenticators just provide another layer of security. None are 100% effective.
-
-A physical/keychain device is by far the best protection. Although still subject to any man-in-the-middle attack, there is no way to get at the secret key stored within it. If you are at all concerned, get one of these.
-
-An iPhone app or app on a non-rooted Android device is also secure. There is no way to get at the secret key stored on the device, however, some apps provides way to export the key that could compromise your authenticator if you do not physically protect your phone. Also if those apps backup their data elsewhere, that data could be vulnerable.
-
-A rooted-Android phone can have your secret key read off it by an app with access. Some apps also do not encrypt the keys and so this should be considered risky.
-
-WinAuth stores you secret key in an encrypted file on your computer. Whilst it cannot therefore provide the same security as a separate physical device, as much as possible has been done to protect the key on your machine. As above, physical access to your machine would be the only way to compromise any authenticator.
-
-#### I'm concerned this might be a virus / malware / keylogger
-
-WinAuth has been around and used since mid-2010 and has been downloaded by thousands of users.
-
-It has always been open-source allowing everyone to inspect and review the code. A binary is provided, but the source code is always released simultaneously so that you can review the code and build it yourself.
-
-No personal information is sent out to any other 3rd party servers. It never even sees your account information, only your authenticator details.
-
-There are no other executables installed on your machine. There is no installer doing things you are unable to monitor. WinAuth is portable so you can just run it from anywhere.
-
-#### I found WinAuth on another website, is it the same thing?
-
-WinAuth source code is uploaded to GitHub at http://github.com/winauth/winauth and pre-built binaries are in [releases](https://github.com/winauth/winauth/releases). It is not published anywhere else, so please do not download any other programs claiming to be WinAuth.
-
-#### Where does WinAuth save my authenticator information?
-
-Unlike some other authenticator applications, WinAuth does not store/send your information to any 3rd party servers. Your authenticator information is saved by default in your account roaming profile, i.e. c:\Users\<username>\AppData\Roaming\WinAuth. However, this file can be moved anywhere and passed into WinAuth when run.
-
-----
-
-## More Information
-
-All trademarks are recognised, including but not limited to:
-
-  * Blizzard, Battle.net, World of Warcraft, Starcraft, Diablo
-  * ArenaNet, Guild Wars 2
-  * Trion, Rift
-  * Google
-  * Microsoft
-  * Steam
-
-----
-
-## Author
-
-WinAuth was written by Colin Mackie. Copyright (C) 2010-2017.
-
-Bitcoin donations can be sent to `1C4bMkMATViiWYsmJSDUx2MruWM785C36Y`
-
-----
-
-## License
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License  along with this program.  If not, see http://www.gnu.org/licenses/.
+本プログラムは有用であることを願って頒布されますが、商品性や特定目的への適合性の暗黙の保証を含め、**いかなる保証もありません**。詳細は [LICENSE](LICENSE) または <https://www.gnu.org/licenses/> を参照してください。
