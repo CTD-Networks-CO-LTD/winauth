@@ -347,8 +347,6 @@ namespace WinAuth
 				if (config.Upgraded == true)
 				{
 					SaveConfig(true);
-					// display warning
-					WinAuthForm.ErrorDialog(this, string.Format(strings.ConfigUpgraded, WinAuthConfig.CURRENTVERSION));
 				}
 
 				InitializeForm();
@@ -378,8 +376,6 @@ namespace WinAuth
 				if (config.Upgraded == true)
 				{
 					SaveConfig(true);
-					// display warning
-					WinAuthForm.ErrorDialog(this, string.Format(strings.ConfigUpgraded, WinAuthConfig.CURRENTVERSION));
 				}
 
 				InitializeForm();

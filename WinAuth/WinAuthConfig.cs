@@ -821,7 +821,8 @@ namespace WinAuth
 				if (version > WinAuthConfig.CURRENTVERSION)
 				{
 					// ensure we don't overwrite a newer config
-					throw new WinAuthInvalidNewerConfigException(string.Format(strings.ConfigIsNewer, version));
+					this.IsReadOnly = true;
+					WinAuthMain.LogMessage(string.Format("Config version {0} is newer than current application version {1}. Opened in read-only mode.", version, WinAuthConfig.CURRENTVERSION));
 				}
 			}
 

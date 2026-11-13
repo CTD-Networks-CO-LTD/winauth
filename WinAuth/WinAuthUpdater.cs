@@ -132,34 +132,37 @@ namespace WinAuth
 		{
 			Config = config;
 
-			// read the update interval and last known latest version from the registry
-			TimeSpan interval;
-			if (TimeSpan.TryParse(Config.ReadSetting(WINAUTHREGKEY_CHECKFREQUENCY, string.Empty), out interval) == true)
+			if (Config != null)
 			{
-				_autocheckInterval = interval;
-			}
+				// read the update interval and last known latest version from the registry
+				TimeSpan interval;
+				if (TimeSpan.TryParse(Config.ReadSetting(WINAUTHREGKEY_CHECKFREQUENCY, string.Empty), out interval) == true)
+				{
+					_autocheckInterval = interval;
+				}
 
-			long lastCheck = 0;
-			if (long.TryParse(Config.ReadSetting(WINAUTHREGKEY_LASTCHECK, null), out lastCheck) == true)
-			{
-				_lastCheck = new DateTime(lastCheck);
-			}
+				long lastCheck = 0;
+				if (long.TryParse(Config.ReadSetting(WINAUTHREGKEY_LASTCHECK, null), out lastCheck) == true)
+				{
+					_lastCheck = new DateTime(lastCheck);
+				}
 
-			Version version;
+				Version version;
 #if NETFX_4
-			if (Version.TryParse(Config.ReadSetting(WINAUTHREGKEY_LATESTVERSION, string.Empty), out version) == true)
-			{
-				_latestVersion = version;
-			}
+				if (Version.TryParse(Config.ReadSetting(WINAUTHREGKEY_LATESTVERSION, string.Empty), out version) == true)
+				{
+					_latestVersion = version;
+				}
 #endif
 #if NETFX_3
-			try
-			{
-				version = new Version(Config.ReadSetting(WINAUTHREGKEY_LATESTVERSION, string.Empty));
-				_latestVersion = version;
-			}
-			catch (Exception) { }
+				try
+				{
+					version = new Version(Config.ReadSetting(WINAUTHREGKEY_LATESTVERSION, string.Empty));
+					_latestVersion = version;
+				}
+				catch (Exception) { }
 #endif
+			}
 		}
 
 		#region Properties
@@ -316,6 +319,15 @@ namespace WinAuth
 				}
 			}
 			catch (Exception) { }
+
+			if (string.IsNullOrEmpty(updateUrl))
+			{
+				if (callback != null)
+				{
+					callback(null, false, null);
+				}
+				return null;
+			}
 			try
 			{
 				using (WebClient web = new WebClient())
@@ -462,22 +474,24 @@ namespace WinAuth
 		public void SetUpdateInterval(TimeSpan? interval)
 		{
 			// get the next check time
-			if (interval != null)
+			if (Config != null)
 			{
-				// write into regisry
-				
-				Config.WriteSetting(WINAUTHREGKEY_CHECKFREQUENCY, string.Format("{0}:{1:00}:{2:00}", interval.Value.TotalHours, interval.Value.Minutes, interval.Value.Seconds)); // toString("c") is Net4
-
-				// if last update not set, set to now
-				if (Config.ReadSetting(WINAUTHREGKEY_LASTCHECK) == null)
+				if (interval != null)
 				{
-					Config.WriteSetting(WINAUTHREGKEY_LASTCHECK, DateTime.Now.Ticks.ToString());
+					// write into registry
+					Config.WriteSetting(WINAUTHREGKEY_CHECKFREQUENCY, string.Format("{0}:{1:00}:{2:00}", interval.Value.TotalHours, interval.Value.Minutes, interval.Value.Seconds)); // toString("c") is Net4
+
+					// if last update not set, set to now
+					if (Config.ReadSetting(WINAUTHREGKEY_LASTCHECK) == null)
+					{
+						Config.WriteSetting(WINAUTHREGKEY_LASTCHECK, DateTime.Now.Ticks.ToString());
+					}
 				}
-			}
-			else
-			{
-				// remove from registry
-				Config.WriteSetting(WINAUTHREGKEY_CHECKFREQUENCY, null);
+				else
+				{
+					// remove from registry
+					Config.WriteSetting(WINAUTHREGKEY_CHECKFREQUENCY, null);
+				}
 			}
 
 			// update local values

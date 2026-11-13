@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
 using System.IO;
@@ -59,11 +60,7 @@ namespace WinAuth
     /// <summary>
     /// URL to get latest information
     /// </summary>
-#if BETA
-		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-beta-version.xml";
-#else
-		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-version.xml";
-#endif
+    public const string WINAUTH_UPDATE_URL = null;
 
 		/// <summary>
 		/// Set of inbuilt icons and authenticator types
@@ -327,7 +324,10 @@ namespace WinAuth
 				return;
 			}
 
-			Logger.Info(msg);
+			if (Logger != null)
+			{
+				Logger.Info(msg);
+			}
 		}
 
 		private static WinAuthForm _form;
@@ -353,6 +353,7 @@ namespace WinAuth
 
 			strings.Culture = System.Threading.Thread.CurrentThread.CurrentUICulture;
 
+			Application.SetDefaultFont(new Font(new FontFamily("Microsoft Sans Serif"), 8.25f));
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 
