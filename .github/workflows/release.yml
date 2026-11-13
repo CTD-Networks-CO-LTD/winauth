@@ -56,10 +56,14 @@ jobs:
             throw "Invalid tag name format: $env:RAW_TAG"
           }
           $tag = $env:RAW_TAG
-          $ver = ($tag -replace '^[vV]', '')
           $verProps = @()
-          if ($ver -match '^\d+\.\d+\.\d+(\.\d+)?$') {
+          if ($tag -match '^[vV]?(\d+\.\d+\.\d+(?:\.\d+)?)') {
+            $ver = $Matches[1]
+            $ver4 = if ($ver.Split('.').Length -eq 3) { "$ver.0" } else { $ver }
             $verProps += "-p:Version=$ver"
+            $verProps += "-p:AssemblyVersion=$ver4"
+            $verProps += "-p:FileVersion=$ver4"
+            $verProps += "-p:InformationalVersion=$ver"
           }
 
           dotnet publish "WinAuth/WinAuth.csproj" `

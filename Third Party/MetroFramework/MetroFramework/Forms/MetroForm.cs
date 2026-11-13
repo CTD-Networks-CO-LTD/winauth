@@ -405,6 +405,12 @@ namespace MetroFramework.Forms
             UpdateWindowButtonPosition();
         }
 
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateWindowButtonPosition();
+        }
+
         protected override void WndProc(ref Message m)
         {
             if (DesignMode)
@@ -558,7 +564,7 @@ namespace MetroFramework.Forms
             newButton.Theme = Theme;
             newButton.Tag = button;
             newButton.Size = new Size(25, 20);
-            newButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            newButton.Anchor = AnchorStyles.Top | AnchorStyles.Left;
 						newButton.TabStop = false;
             newButton.Click += WindowButton_Click;
             Controls.Add(newButton);
@@ -598,43 +604,34 @@ namespace MetroFramework.Forms
 
         private void UpdateWindowButtonPosition()
         {
-            if (!ControlBox) return;
+            if (!ControlBox || windowButtonList == null || windowButtonList.Count == 0) return;
 
-            Dictionary<int, WindowButtons> priorityOrder = new Dictionary<int, WindowButtons>(3) { {0, WindowButtons.Close}, {1, WindowButtons.Maximize}, {2, WindowButtons.Minimize} };
-
-            Point firstButtonLocation = new Point(ClientRectangle.Width - borderWidth - 25, borderWidth);
-            int lastDrawedButtonPosition = firstButtonLocation.X - 25;
-
-            MetroFormButton firstButton = null;
-
-            if (windowButtonList.Count == 1)
+            SuspendLayout();
+            try
             {
-                foreach (KeyValuePair<WindowButtons, MetroFormButton> button in windowButtonList)
+                Dictionary<int, WindowButtons> priorityOrder = new Dictionary<int, WindowButtons>(3)
                 {
-                    button.Value.Location = firstButtonLocation;
-                }
-            }
-            else
-            {
-                foreach (KeyValuePair<int, WindowButtons> button in priorityOrder)
-                {
-                    bool buttonExists = windowButtonList.ContainsKey(button.Value);
+                    { 0, WindowButtons.Close },
+                    { 1, WindowButtons.Maximize },
+                    { 2, WindowButtons.Minimize }
+                };
 
-                    if (firstButton == null && buttonExists)
+                int currentX = ClientRectangle.Width - borderWidth - 25;
+
+                foreach (KeyValuePair<int, WindowButtons> pair in priorityOrder)
+                {
+                    if (windowButtonList.TryGetValue(pair.Value, out MetroFormButton btn) && btn != null)
                     {
-                        firstButton = windowButtonList[button.Value];
-                        firstButton.Location = firstButtonLocation;
-                        continue;
+                        btn.SetBounds(currentX, borderWidth, 25, 20);
+                        btn.BringToFront();
+                        currentX -= 25;
                     }
-
-                    if (firstButton == null || !buttonExists) continue;
-
-                    windowButtonList[button.Value].Location = new Point(lastDrawedButtonPosition, borderWidth);
-                    lastDrawedButtonPosition = lastDrawedButtonPosition - 25;
                 }
             }
-
-            Refresh();
+            finally
+            {
+                ResumeLayout(false);
+            }
         }
 
         private class MetroFormButton : Button, IMetroControl

@@ -3,7 +3,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>WinAuth</RootNamespace>
     <UseWindowsForms>true</UseWindowsForms>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Product>WinAuth</Product>
+    <Description>Authenticator implementation</Description>
+    <Company>CTD Networks Co., Ltd.</Company>
+    <Copyright>Copyright © 2013-2026 Colin Mackie / Modified 2026 CTD Networks Co., Ltd.</Copyright>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Version Condition="'$(Version)' == ''">4.0.0</Version>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <DefineConstants>$(DefineConstants);NETFX_4</DefineConstants>

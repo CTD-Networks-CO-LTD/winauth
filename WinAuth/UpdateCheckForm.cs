@@ -224,6 +224,10 @@ namespace WinAuth
 				text = GetHtmlText("Error: " + error.Message);
 				//text = "Error: " + error.Message;
 			}
+			else if (latestInfo == null)
+			{
+				text = GetHtmlText("<p>You are on the latest version.</p>");
+			}
 			else
 			{
 				Version latest = new Version(latestInfo.Version.Major, latestInfo.Version.Minor, latestInfo.Version.Build);
@@ -240,7 +244,14 @@ namespace WinAuth
 			}
 
 			// update the textbox in a delegate
-			this.Invoke((MethodInvoker)delegate { versionInfoLabel.Text = text; });
+			if (this.InvokeRequired)
+			{
+				this.Invoke((MethodInvoker)delegate { versionInfoLabel.Text = text; });
+			}
+			else
+			{
+				versionInfoLabel.Text = text;
+			}
 		}
 
 		#endregion

@@ -157,6 +157,23 @@ namespace WinAuth
 					}
 				}
 
+      if (string.IsNullOrEmpty(configFile) == false && File.Exists(configFile) == false)
+      {
+        string fileName = Path.GetFileName(configFile);
+        if (string.IsNullOrEmpty(Path.GetDirectoryName(configFile)) || fileName == configFile)
+        {
+          string exeDir = Path.GetDirectoryName(Environment.ProcessPath ?? Application.ExecutablePath);
+          if (string.IsNullOrEmpty(exeDir) == false)
+          {
+            string fallbackPath = Path.Combine(exeDir, fileName);
+            if (File.Exists(fallbackPath))
+            {
+              configFile = fallbackPath;
+            }
+          }
+        }
+      }
+
       // if no config file when one was specified; report an error
       if (File.Exists(configFile) == false)
       {
@@ -166,6 +183,8 @@ namespace WinAuth
         // return config;
 				throw new ApplicationException(strings.CannotFindConfigurationFile + ": " + configFile);
       }
+
+      configFile = Path.GetFullPath(configFile);
 
 			// check if readonly
 			FileInfo fi = new FileInfo(configFile);
@@ -199,12 +218,15 @@ namespace WinAuth
 
 				config.Filename = configFile;
 
-				if (config.Version < WinAuthConfig.CURRENTVERSION)
+				if (config.IsReadOnly == false && config.Version < WinAuthConfig.CURRENTVERSION)
 				{
 					// set new created values
 					foreach (WinAuthAuthenticator wa in config)
 					{
-						wa.Created = fi.CreationTime;
+						if (wa.Created == DateTime.MinValue)
+						{
+							wa.Created = fi.CreationTime;
+						}
 					}
 
 					config.Upgraded = true;
