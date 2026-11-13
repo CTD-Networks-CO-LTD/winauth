@@ -694,7 +694,7 @@ namespace WinAuth
 				{
 					byte[] key = pbkdf2.GetBytes(ImportedSDAEntry.KEY_SIZE_BYTES);
 
-					using (RijndaelManaged aes256 = new RijndaelManaged())
+					using (Aes aes256 = Aes.Create())
 					{
 						aes256.IV = Convert.FromBase64String(iv);
 						aes256.Key = key;

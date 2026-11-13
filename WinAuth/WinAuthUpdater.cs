@@ -199,7 +199,13 @@ namespace WinAuth
 			{
 				Version version;
 #if NETFX_4
-				if (Version.TryParse(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion, out version) == false)
+				string executablePath = Environment.ProcessPath;
+				string fileVersion = string.IsNullOrEmpty(executablePath) == false ? FileVersionInfo.GetVersionInfo(executablePath).FileVersion : null;
+				if (Version.TryParse(fileVersion, out version) == false)
+				{
+					version = Assembly.GetExecutingAssembly().GetName().Version;
+				}
+				if (version == null)
 				{
 					throw new InvalidOperationException("Cannot get Assembly version information");
 				}

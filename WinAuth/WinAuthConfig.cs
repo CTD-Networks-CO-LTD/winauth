@@ -424,7 +424,10 @@ namespace WinAuth
 			get
 			{
 				return (string.IsNullOrEmpty(this.Filename) == false
-					&& string.Compare(Path.GetDirectoryName(this.Filename), Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), true) == 0);
+					&& string.Compare(
+						Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.GetFullPath(this.Filename)) ?? string.Empty),
+						Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory),
+						true) == 0);
 			}
 		}
 
