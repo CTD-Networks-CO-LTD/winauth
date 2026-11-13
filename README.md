@@ -22,7 +22,7 @@
   * 標準アイコンの選択やカスタムアイコンの設定が可能
   * `otpauth://` URI 形式等でのインポート・エクスポートに対応
 * **ポータブル運用に対応**
-  * インストーラー不要で単一の `WinAuth.exe` から実行可能
+  * USBドライブや社内NAS上のPJフォルダに配置など、インストーラー不要で単一の `WinAuth.exe` から実行可能
   * 実行ファイルと同じフォルダに設定ファイルを配置することで、レジストリや他フォルダを変更しないポータブルモードで動作
     * 例：`start "" "%~dp0WinAuth\WinAuth.exe" "%~dp0WinAuth\winauth.xml"`
     * `winauth.xml`は、デフォルトでは Windows のローミングプロファイル配下（%AppData%\WinAuth\winauth.xml、例: C:\Users\<ユーザー名>\AppData\Roaming\WinAuth\winauth.xml）に保存されます。
