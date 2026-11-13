@@ -1,20 +1,93 @@
-# How to compile WinAuth
+# WinAuth のビルド手順
 
-## Windows (Visual Studio) 
+このドキュメントでは、ソースコードから WinAuth をビルド・テスト・パッケージングする手順を説明します。
 
-### Prerequisites
+## 前提条件
 
-* Visual Studio 2017
-* Windows 8.1 SDK
+### 必須要件
+* **OS**: Windows 10 / Windows 11（64ビット環境推奨）
+* **.NET SDK**: [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)（`10.0.x`）
 
-### Installation
+### オプション要件
+* **Visual Studio で開発・ビルドする場合**:
+  * Visual Studio 2022 以降（「.NET デスクトップ開発」ワークロードを含む）
+* **YubiKey 用ネイティブ DLL（`WinAuth.YubiKey`）もビルドする場合**:
+  * Visual Studio（または Build Tools for Visual Studio）の「C++ によるデスクトップ開発」ワークロード
+  * Windows 10 / 11 SDK（ターゲット プラットフォーム バージョン `10.0`）
 
-1. Install Visual Studio 2017. In the installer's component selection "Individual components", make sure to enable "Windows 8.1 SDK". See [screenshot](https://stackoverflow.com/questions/43704734/how-to-fix-the-error-windows-sdk-version-8-1-was-not-found/43888773#43888773).
-2. Git clone or download and extract the codebase.
+> **補足**: YubiKey 用ネイティブ DLL をビルドしなくても、C# ソリューション（`WinAuth.sln`）単体でのビルド・通常機能の実行・単体テストの実行が可能です。
 
-### Building
+---
 
-1. Before starting, make sure to backup your `%AppData%\WinAuth\winauth.xml` file or export your authenticators to prevent data loss.
-2. Open the solution file `Net4.5\WinAuth.sln` or `Net3.5\WinAuth-Net3.5.sln` in Visual Studio.
-3. Visual Studio > Build > Build Solution.
-4. If successful, the executable location should be `bin\Debug\WinAuth.exe` in the solution directory.
+## ビルド前の注意事項
+
+開発中やデバッグ実行時に既存の認証器データが意図せず変更されるのを防ぐため、作業前に `%AppData%\WinAuth\winauth.xml` をバックアップするか、WinAuth のエクスポート機能でデータを退避しておくことを推奨します。
+
+---
+
+## ソリューション構成
+
+ルートディレクトリの `WinAuth.sln` で全 C# プロジェクトを管理しています。
+
+* `WinAuth/WinAuth.csproj` — メインの Windows Forms アプリケーション（`net10.0-windows`）
+* `Authenticator/Authenticator.csproj` — 認証器および暗号化（WINAUTH4 / WINAUTH3）コアライブラリ（`net10.0-windows`）
+* `Authenticator.Tests/Authenticator.Tests.csproj` — xUnit 単体テストプロジェクト（`net10.0-windows`）
+* `Third Party/` — 同梱サードパーティライブラリ（`InputSimulator`, `MetroFramework`, `MetroFramework.Fonts`）
+* `WinAuth.YubiKey/` — YubiKey 連携用のネイティブ C プロジェクト（`WinAuth.YubiKey.x86.vcxproj` / `WinAuth.YubiKey.x64.vcxproj`）
+
+---
+
+## 1. コマンドライン（.NET CLI）でのビルドとテスト
+
+### (任意) YubiKey ネイティブ DLL のビルド
+YubiKey 連携機能を組み込む場合は、C# プロジェクトのビルド前に MSBuild でネイティブ DLL（x86 / x64）をビルドします。出力された DLL は `Authenticator/Resources/` に配置され、`Authenticator` アセンブリのリソースとして自動的に埋め込まれます。
+
+```powershell
+msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x86.vcxproj" /p:Configuration=Release /p:Platform=Win32
+msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x64.vcxproj" /p:Configuration=Release /p:Platform=x64
+```
+
+### 復元・ビルド・単体テストの実行
+
+```powershell
+# NuGet パッケージの復元
+dotnet restore WinAuth.sln
+
+# Release 構成でソリューション全体をビルド
+dotnet build WinAuth.sln -c Release --no-restore
+
+# 単体テストの実行
+dotnet test WinAuth.sln -c Release --no-build
+```
+
+ビルドが成功すると、`WinAuth\bin\Release\net10.0-windows\WinAuth.exe`（Debug 構成の場合は `WinAuth\bin\Debug\net10.0-windows\WinAuth.exe`）が生成されます。
+
+---
+
+## 2. 配布用の単一実行ファイル（Single-File）の発行
+
+現行バージョンでは旧来の `ILMerge` は使用せず、.NET 標準の単一ファイル発行機能（`PublishSingleFile`）を使用して 1 つの `WinAuth.exe` を生成します（GitHub Actions の `.github/workflows/release.yml` と同等の手順です）。
+
+```powershell
+dotnet publish "WinAuth/WinAuth.csproj" `
+  -c Release `
+  -r win-x64 `
+  --self-contained false `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:DebugType=none `
+  -p:DebugSymbols=false `
+  -o "./publish"
+```
+
+成功すると、`./publish/WinAuth.exe` に配布可能な単一実行ファイルが出力されます（実行にはターゲット環境に .NET 10 Desktop Runtime が必要です。ランタイムごと同梱する場合は `--self-contained true` を指定してください）。
+
+---
+
+## 3. Visual Studio でのビルド
+
+1. リポジトリ直下の `WinAuth.sln` を Visual Studio で開きます。
+2. ビルド構成（`Debug` または `Release`）を選択します。
+3. メニューの **［ビルド］＞［ソリューションのビルド］** を実行します。
+4. 出力先 `WinAuth\bin\<Debug|Release>\net10.0-windows\WinAuth.exe` に実行ファイルが生成されます。
+
