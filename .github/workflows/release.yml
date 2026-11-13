@@ -29,7 +29,12 @@ jobs:
         shell: pwsh
         run: |
           msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x86.vcxproj" /p:Configuration=Release /p:Platform=Win32
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           msbuild "WinAuth.YubiKey/WinAuth.YubiKey.x64.vcxproj" /p:Configuration=Release /p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "Authenticator/Resources/WinAuth.YubiKey.x86.dll") -or -not (Test-Path "Authenticator/Resources/WinAuth.YubiKey.x64.dll")) {
+            throw "Expected YubiKey native DLLs were not generated."
+          }
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v6
