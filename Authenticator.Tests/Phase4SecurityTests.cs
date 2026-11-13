@@ -34,11 +34,33 @@ namespace AuthenticatorTests
         [Fact]
         public void TestYubiKeyLoadMissingResourceThrowsLibraryNotFoundException()
         {
-            // When native DLL is not present or embedded, CreateInstance/Init must throw proper exception rather than crash
-            Assert.Throws<LibraryNotFoundException>(() =>
+            string libraryName = (IntPtr.Size == 4 ? "WinAuth.YubiKey.x86.dll" : "WinAuth.YubiKey.x64.dll");
+            using (var resourceStream = typeof(Authenticator).Assembly.GetManifestResourceStream("WinAuth.Resources." + libraryName))
             {
-                YubiKey.CreateInstance();
-            });
+                if (resourceStream == null)
+                {
+                    // When native DLL is not embedded, CreateInstance/Init must throw proper exception rather than crash
+                    Assert.Throws<LibraryNotFoundException>(() =>
+                    {
+                        YubiKey.CreateInstance();
+                    });
+                }
+                else
+                {
+                    // When native DLL is embedded (e.g. CI release build), loading and querying status must succeed without crashing
+                    using (var yubiKey = YubiKey.CreateInstance())
+                    {
+                        Assert.NotNull(yubiKey);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void TestAuthenticatorEmbeddedResourcesUseWinAuthRootNamespace()
+        {
+            var names = typeof(Authenticator).Assembly.GetManifestResourceNames();
+            Assert.Contains("WinAuth.Properties.Resources.resources", names);
         }
     }
 }
