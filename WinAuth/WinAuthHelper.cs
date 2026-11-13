@@ -106,27 +106,9 @@ namespace WinAuth
     public const string DEFAULT_AUTHENTICATOR_FILE_NAME = "winauth.xml";
 
     /// <summary>
-    /// The WinAuth PGP public key
+    /// Legacy WinAuth PGP public key - disabled for security (VULN-03)
     /// </summary>
-    public const string WINAUTH_PGP_PUBLICKEY =
-      @"-----BEGIN PGP PUBLIC KEY BLOCK-----
-			Version: BCPG C# v1.7.4114.6375
-			
-			mQEMBFA8sxQBCAC5EWjbGHDgyo4e9rcwse1mWbCOyeTwGZH2malJreF2v81KwBZa
-			eCAPX6cP6EWJPlMOgkJpBQOgh+AezkYEidrW4+NXCGv+Z03U1YBc7e/nYnABZrJx
-			XsqWVyM3d3iLSpKsMfk2OAIAIvoCvzcdx0ljm2IXGKRHGnc0nU7hSFXh5S/sJErN
-			Cgrll6lD2CPNIPuUiMSWptgO1RAjerk0rwLh1DSChicPMJZfxJWn7JD1VVQLmAon
-			EJ4x0MUIbff7ZmEna4O2rF9mrCjwfANkcz8N6WFp3PrfhxArXkvOBPYF9iEigFRS
-			QVt6XAF6sjGhSYxZRaRj0tE4PyajE/HfNk0DAAkBAbQbV2luQXV0aCA8d2luYXV0
-			aEBnbWFpbC5jb20+iQE0BBABAgASBQJQPRWEApsPAhYBAhUCAgsDABYJEJ3DDyNp
-			qwwqApsPAhYBAhUCAgsDqb8IAKJRlRu5ne2BuHrMlKW/BI6I/hpkGQ8BzmO7LatM
-			YYj//XKkbQ2BSvbDNI1al5HSo1iseokIZqD07iMwsp9GvLXSOVCROK9HYJ4dHsdP
-			l68KgNDWu8ZDhPRGerf4+pn1jRfXW4NdFT8W1TX3RArpdVSd5Q2tV2tZrANErBYa
-			UTDodsNKwikcgk89a2NI+Lh17lFGCFdAdZ07gRwu6cOm4SqP2TjWjDreXqlE9fHd
-			0dwmYeS1QlGYK3ETNS1KvVTNaKdht231jGwlxy09Rxtx1EBLqFNsc+BW5rjYEPN2
-			EAlelUJsVidUjZNB1ySm9uW8xurSEXWPZxWITl+LYmgwtn0=
-			=dvwu
-			-----END PGP PUBLIC KEY BLOCK-----";
+    public const string WINAUTH_PGP_PUBLICKEY = "";
 
 
     /// <summary>
@@ -329,7 +311,7 @@ namespace WinAuth
 						var verify = File.ReadAllBytes(tempfile);
 						if (verify.Length != data.Length || verify.SequenceEqual(data) == false)
 						{
-							throw new ApplicationException("Save config doesn't compare with memory: " + Convert.ToBase64String(data));
+							throw new ApplicationException("Save config verification failed: size or content mismatch");
 						}
 
 						// move it to old file
@@ -369,11 +351,12 @@ namespace WinAuth
 
 		/// <summary>
 		/// Save a PGP encrypted version of an authenticator into the registry for recovery
+		/// Only saves if the user has explicitly configured their own PGP key (VULN-03)
 		/// </summary>
 		/// <param name="wa">WinAuthAuthenticator instance</param>
 		public static void SaveToRegistry(WinAuthConfig config, WinAuthAuthenticator wa)
 		{
-			if (config == null || wa == null || wa.AuthenticatorData == null)
+			if (config == null || wa == null || wa.AuthenticatorData == null || string.IsNullOrEmpty(config.PGPKey))
 			{
 				return;
 			}
@@ -396,8 +379,7 @@ namespace WinAuth
 						xw.WriteEndElement();
 					}
 
-					string pgpkey = string.IsNullOrEmpty(config.PGPKey) == false ? config.PGPKey : WinAuthHelper.WINAUTH_PGP_PUBLICKEY;
-					config.WriteSetting(WINAUTHREGKEY_BACKUP + "\\" + authkey, PGPEncrypt(sw.ToString(), pgpkey));
+					config.WriteSetting(WINAUTHREGKEY_BACKUP + "\\" + authkey, PGPEncrypt(sw.ToString(), config.PGPKey));
 				}
 			}
 		}
@@ -428,8 +410,8 @@ namespace WinAuth
     {
       if (enabled == true)
       {
-        // get path of exe and minimize flag
-				WriteRegistryValue(RUNKEY + "\\" + WinAuthMain.APPLICATION_NAME, Application.ExecutablePath + " -min");
+        // get path of exe and minimize flag (quoted to prevent unquoted service path execution - VULN-12)
+				WriteRegistryValue(RUNKEY + "\\" + WinAuthMain.APPLICATION_NAME, "\"" + Application.ExecutablePath + "\" -min");
       }
       else
       {				
@@ -471,19 +453,46 @@ namespace WinAuth
 								zip.Password = password;
 							}
 
+							const int MAX_ZIP_ENTRIES = 100;
+							const long MAX_ENTRY_SIZE = 5 * 1024 * 1024; // 5 MB
+							const long MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10 MB
+
+							int entryCount = 0;
+							long totalBytes = 0;
 							byte[] buffer = new byte[4096];
 							foreach (ZipEntry entry in zip)
 							{
+								entryCount++;
+								if (entryCount > MAX_ZIP_ENTRIES)
+								{
+									throw new ImportException("Too many entries in zip file (limit: 100)");
+								}
+
 								if (entry.IsFile == false || string.Compare(Path.GetExtension(entry.Name), ".txt", true) != 0)
 								{
 									continue;
 								}
 
-								// read file out
+								// read file out with size limits (VULN-16 Zip Bomb prevention)
 								Stream zs = zip.GetInputStream(entry);
 								using (var ms = new MemoryStream())
 								{
-									StreamUtils.Copy(zs, ms, buffer);
+									int bytesRead;
+									long entryBytes = 0;
+									while ((bytesRead = zs.Read(buffer, 0, buffer.Length)) > 0)
+									{
+										entryBytes += bytesRead;
+										totalBytes += bytesRead;
+										if (entryBytes > MAX_ENTRY_SIZE)
+										{
+											throw new ImportException("Zip entry exceeds maximum allowable size (5 MB)");
+										}
+										if (totalBytes > MAX_TOTAL_SIZE)
+										{
+											throw new ImportException("Total extracted zip size exceeds maximum allowable size (10 MB)");
+										}
+										ms.Write(buffer, 0, bytesRead);
+									}
 
 									// get as string and append
 									ms.Seek(0, SeekOrigin.Begin);
@@ -823,6 +832,10 @@ namespace WinAuth
 
 							ZipEntry entry = new ZipEntry(ZipEntry.CleanName(Path.GetFileNameWithoutExtension(file) + ".txt"));
 							entry.DateTime = DateTime.Now;
+							if (string.IsNullOrEmpty(password) == false)
+							{
+								entry.AESKeySize = 256;
+							}
 							zip.UseZip64 = UseZip64.Off;
 
 							zip.PutNextEntry(entry);
@@ -1228,7 +1241,7 @@ namespace WinAuth
       hashedGen.SetKeyFlags(true, PgpKeyFlags.CanCertify | PgpKeyFlags.CanSign | PgpKeyFlags.CanEncryptCommunications | PgpKeyFlags.CanEncryptStorage);
       hashedGen.SetPreferredCompressionAlgorithms(false, new int[] { (int)CompressionAlgorithmTag.Zip });
       hashedGen.SetPreferredHashAlgorithms(false, new int[] { (int)HashAlgorithmTag.Sha1 });
-      hashedGen.SetPreferredSymmetricAlgorithms(false, new int[] { (int)SymmetricKeyAlgorithmTag.Cast5 });
+      hashedGen.SetPreferredSymmetricAlgorithms(false, new int[] { (int)SymmetricKeyAlgorithmTag.Aes256 });
       PgpSignatureSubpacketVector sv = hashedGen.Generate();
       PgpSignatureSubpacketGenerator unhashedGen = new PgpSignatureSubpacketGenerator();
 
@@ -1240,7 +1253,7 @@ namespace WinAuth
         pair.Private,
         DateTime.Now,
         identifier,
-        SymmetricKeyAlgorithmTag.Cast5,
+        SymmetricKeyAlgorithmTag.Aes256,
         (password != null ? password.ToCharArray() : null),
         hashedGen.Generate(),
         unhashedGen.Generate(),
@@ -1302,7 +1315,7 @@ namespace WinAuth
       {
         using (ArmoredOutputStream armored = new ArmoredOutputStream(encryptedStream))
         {
-          PgpEncryptedDataGenerator pedg = new PgpEncryptedDataGenerator(Org.BouncyCastle.Bcpg.SymmetricKeyAlgorithmTag.Cast5, true, new Org.BouncyCastle.Security.SecureRandom());
+          PgpEncryptedDataGenerator pedg = new PgpEncryptedDataGenerator(Org.BouncyCastle.Bcpg.SymmetricKeyAlgorithmTag.Aes256, true, new Org.BouncyCastle.Security.SecureRandom());
           pedg.AddMethod(publicKey);
           using (Stream pedgStream = pedg.Open(armored, new byte[4096]))
           {

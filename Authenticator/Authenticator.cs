@@ -78,6 +78,15 @@ namespace WinAuth
     /// Default number of digits in code
     /// </summary>
     public const int DEFAULT_CODE_DIGITS = 6;
+    /// <summary>
+    /// Safe XmlReaderSettings prohibiting DTD and external entity resolution (XXE prevention - VULN-11)
+    /// </summary>
+    public static readonly XmlReaderSettings SafeReaderSettings = new XmlReaderSettings
+    {
+      DtdProcessing = DtdProcessing.Prohibit,
+      XmlResolver = null
+    };
+
 
     /// <summary>
     /// Default period of 30s
@@ -598,7 +607,7 @@ namespace WinAuth
         string data = Authenticator.DecryptSequence(this.EncryptedData, this.PasswordType, password, null);
         using (MemoryStream ms = new MemoryStream(Authenticator.StringToByteArray(data)))
         {
-          XmlReader reader = XmlReader.Create(ms);
+          XmlReader reader = XmlReader.Create(ms, SafeReaderSettings);
           changed = this.ReadXml(reader, password) || changed;
         }
         this.RequiresPassword = false;

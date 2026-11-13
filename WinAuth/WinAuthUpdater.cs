@@ -387,8 +387,9 @@ namespace WinAuth
 		/// <returns>new WinAuthVersionInfo object</returns>
 		private WinAuthVersionInfo ParseGetLatestVersion(string result)
 		{
-			// load xml document and pull out nodes
+			// load xml document and pull out nodes (XXE prevention - VULN-11)
 			XmlDocument xml = new XmlDocument();
+			xml.XmlResolver = null;
 			xml.LoadXml(result);
 			var node = xml.SelectSingleNode("//version");
 

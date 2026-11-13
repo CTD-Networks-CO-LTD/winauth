@@ -61,9 +61,9 @@ namespace WinAuth
 		private const int SYNC_ERROR_MINUTES = 5;
 
     /// <summary>
-    /// URL used to sync time
+    /// URL used to sync time (HTTPS enforced - VULN-07)
     /// </summary>
-    private const string TIME_SYNC_URL = "http://www.google.com";
+    private const string TIME_SYNC_URL = "https://www.google.com";
 
 		/// <summary>
 		/// Time of last Sync error
@@ -142,6 +142,12 @@ namespace WinAuth
 
 							// get the difference between the server time and our current time
 							long serverTimeDiff = dtms - CurrentTime;
+
+							// Reject extreme clock drift (e.g., > 24 hours) as potential MITM or clock tampering (VULN-07)
+							if (Math.Abs(serverTimeDiff) > 24L * 60 * 60 * 1000)
+							{
+								throw new ApplicationException(string.Format("Extreme time drift detected: {0} ms", serverTimeDiff));
+							}
 
 							// update the Data object
 							ServerTimeDiff = serverTimeDiff;

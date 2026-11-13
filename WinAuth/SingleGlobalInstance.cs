@@ -46,14 +46,19 @@ namespace WinAuth
 			HasHandle = false;
 
 			string appGuid = ((GuidAttribute)Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value.ToString();
-			string userGuid = WindowsIdentity.GetCurrent().User.Value;
-			string mutexId = string.Format("Global\\{{{0}}}-{{{1}}}", userGuid, appGuid);
+			var currentUser = WindowsIdentity.GetCurrent().User;
+			string userGuid = currentUser != null ? currentUser.Value : "Current";
+			// Use Local\ scope instead of Global\ and grant ACL only to current user (VULN-13)
+			string mutexId = string.Format("Local\\{{{0}}}-{{{1}}}", userGuid, appGuid);
 			_mutex = new Mutex(false, mutexId);
 
-			var allowEveryoneRule = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
-			var securitySettings = new MutexSecurity();
-			securitySettings.AddAccessRule(allowEveryoneRule);
-			_mutex.SetAccessControl(securitySettings);
+			if (currentUser != null)
+			{
+				var allowUserRule = new MutexAccessRule(currentUser, MutexRights.FullControl, AccessControlType.Allow);
+				var securitySettings = new MutexSecurity();
+				securitySettings.AddAccessRule(allowUserRule);
+				_mutex.SetAccessControl(securitySettings);
+			}
 		}
 
 		public SingleGlobalInstance(int timeOut = Timeout.Infinite)

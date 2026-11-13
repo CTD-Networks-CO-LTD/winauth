@@ -121,10 +121,10 @@ namespace WinAuth
 		private static string REGION_CN = "CN";
 		public static Dictionary<string, string> MOBILE_URLS = new Dictionary<string, string>
 		{
-			{REGION_US, "http://mobile-service.blizzard.com"},
-			{REGION_EU, "http://mobile-service.blizzard.com"},
-			{REGION_KR, "http://mobile-service.blizzard.com"},
-			{REGION_CN, "http://mobile-service.battlenet.com.cn"}
+			{REGION_US, "https://mobile-service.blizzard.com"},
+			{REGION_EU, "https://mobile-service.blizzard.com"},
+			{REGION_KR, "https://mobile-service.blizzard.com"},
+			{REGION_CN, "https://mobile-service.battlenet.com.cn"}
 		};
 		private static string ENROLL_PATH = "/enrollment/enroll2.htm";
 		private static string SYNC_PATH = "/enrollment/time.htm";
@@ -151,9 +151,9 @@ namespace WinAuth
 		};
 
 		/// <summary>
-		/// URL for GEO IP lookup to determine region
+		/// URL for GEO IP lookup to determine region (HTTPS enforced - VULN-07)
 		/// </summary>
-		private static string GEOIPURL = "http://geoiplookup.wikimedia.org";
+		private static string GEOIPURL = "https://geoiplookup.wikimedia.org";
 
 		/// <summary>
 		/// Time of last Sync error

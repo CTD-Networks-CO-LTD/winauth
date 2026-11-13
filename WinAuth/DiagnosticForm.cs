@@ -84,53 +84,12 @@ namespace WinAuth
 		{
 			StringBuilder diag = new StringBuilder();
 
-			if (this.Config != null)
-			{
-				// clone the current config so we can extract key in case machine/user encrypted
-				WinAuthConfig clone = this.Config.Clone() as WinAuthConfig;
-				clone.PasswordType = Authenticator.PasswordTypes.None;
-
-				// add the config and authenticator
-				try
-				{
-					StringBuilder xml = new StringBuilder();
-					XmlWriterSettings settings = new XmlWriterSettings();
-					settings.Indent = true;
-					using (XmlWriter writer = XmlWriter.Create(xml, settings))
-					{
-						clone.WriteXmlString(writer);
-					}
-					diag.Append("--CURRENT CONFIG--").Append(Environment.NewLine);
-					diag.Append(xml.ToString()).Append(Environment.NewLine).Append(Environment.NewLine);
-				}
-				catch (Exception ex)
-				{
-					diag.Append(ex.Message).Append(Environment.NewLine).Append(Environment.NewLine);
-				}
-			}
-
-			// add each of the entries from the registry
-			if (this.Config != null)
-			{
-				diag.Append("--REGISTRY--").Append(Environment.NewLine);
-				diag.Append(WinAuthHelper.ReadBackupFromRegistry(this.Config)).Append(Environment.NewLine).Append(Environment.NewLine);
-			}
-
-			// add current config file
-			if (string.IsNullOrEmpty(ConfigFileContents) == false)
-			{
-				diag.Append("--CONFIGFILE--").Append(Environment.NewLine);
-				diag.Append(ConfigFileContents).Append(Environment.NewLine).Append(Environment.NewLine);
-			}
-
-			// add winauth log
-			string dir = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), WinAuthMain.APPLICATION_NAME);
-			string winauthlog = Path.Combine(dir, "winauth.log");
-			if (File.Exists(winauthlog) == true)
-			{
-				diag.Append("--WINAUTH.LOG--").Append(Environment.NewLine);
-				diag.Append(File.ReadAllText(winauthlog)).Append(Environment.NewLine).Append(Environment.NewLine);
-			}
+			// add environment info
+			diag.Append("--ENVIRONMENT--").Append(Environment.NewLine);
+			diag.Append("OS: ").Append(Environment.OSVersion.ToString()).Append(Environment.NewLine);
+			diag.Append(".NET: ").Append(Environment.Version.ToString()).Append(Environment.NewLine);
+			diag.Append("64bit OS: ").Append(Environment.Is64BitOperatingSystem).Append(Environment.NewLine);
+			diag.Append("64bit Process: ").Append(Environment.Is64BitProcess).Append(Environment.NewLine).Append(Environment.NewLine);
 
 			// add the exception
 			if (ErrorException != null)
@@ -140,24 +99,14 @@ namespace WinAuth
 				Exception ex = ErrorException;
 				while (ex != null)
 				{
-					diag.Append("Stack: ").Append(ex.Message).Append(Environment.NewLine).Append(new System.Diagnostics.StackTrace(ex).ToString()).Append(Environment.NewLine);
+					diag.Append("Type: ").Append(ex.GetType().FullName).Append(Environment.NewLine);
+					diag.Append("Message: ").Append(ex.Message).Append(Environment.NewLine);
+					diag.Append("Stack: ").Append(new System.Diagnostics.StackTrace(ex).ToString()).Append(Environment.NewLine);
 					ex = ex.InnerException;
 				}
-				if (ErrorException is InvalidEncryptionException)
-				{
-					diag.Append("Plain: " + ((InvalidEncryptionException)ErrorException).Plain).Append(Environment.NewLine);
-					diag.Append("Password: " + ((InvalidEncryptionException)ErrorException).Password).Append(Environment.NewLine);
-					diag.Append("Encrypted: " + ((InvalidEncryptionException)ErrorException).Encrypted).Append(Environment.NewLine);
-					diag.Append("Decrypted: " + ((InvalidEncryptionException)ErrorException).Decrypted).Append(Environment.NewLine);
-				}
-				else if (ErrorException is InvalidSecretDataException)
+				if (ErrorException is InvalidSecretDataException)
 				{
 					diag.Append("EncType: " + ((InvalidSecretDataException)ErrorException).EncType).Append(Environment.NewLine);
-					diag.Append("Password: " + ((InvalidSecretDataException)ErrorException).Password).Append(Environment.NewLine);
-					foreach (string data in ((InvalidSecretDataException)ErrorException).Decrypted)
-					{
-						diag.Append("Data: " + data).Append(Environment.NewLine);
-					}
 				}
 			}
 

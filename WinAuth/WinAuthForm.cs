@@ -179,29 +179,38 @@ namespace WinAuth
               break;
             case "-p":
             case "--password":
-              // set explicit password to use
-              i++;
-							password = args[i];
+              // set explicit password to use (boundary checked - VULN-17)
+              if (i + 1 < args.Length)
+              {
+                i++;
+                password = args[i];
+              }
               break;
 						case "--proxy":
-							// set proxy [user[:pass]@]ip[:host]
-							i++;
-							proxy = args[i];
+							// set proxy [user[:pass]@]ip[:host] (boundary checked - VULN-17)
+							if (i + 1 < args.Length)
+							{
+								i++;
+								proxy = args[i];
+							}
 							break;
 						case "-l":
 						case "--log":
-							i++;
-							FieldInfo fi = typeof(LogLevel).GetField(args[i], BindingFlags.Static | BindingFlags.IgnoreCase | BindingFlags.Public);
-							if (fi == null)
+							if (i + 1 < args.Length)
 							{
-								WinAuthForm.ErrorDialog(this, "Invalid parameter: log value: " + args[i] + " (must be error,info,debug,trace)");
-								System.Diagnostics.Process.GetCurrentProcess().Kill();
-							}
-							var loglevel = fi.GetValue(null) as LogLevel;
-							var target = NLog.LogManager.Configuration.AllTargets.Where(t => t.Name == null).FirstOrDefault();
-							if (target != null)
-							{
-								LogManager.Configuration.LoggingRules.Add(new NLog.Config.LoggingRule("*", loglevel, target));
+								i++;
+								FieldInfo fi = typeof(LogLevel).GetField(args[i], BindingFlags.Static | BindingFlags.IgnoreCase | BindingFlags.Public);
+								if (fi == null)
+								{
+									WinAuthForm.ErrorDialog(this, "Invalid parameter: log value: " + args[i] + " (must be error,info,debug,trace)");
+									System.Diagnostics.Process.GetCurrentProcess().Kill();
+								}
+								var loglevel = fi.GetValue(null) as LogLevel;
+								var target = NLog.LogManager.Configuration.AllTargets.Where(t => t.Name == null).FirstOrDefault();
+								if (target != null)
+								{
+									LogManager.Configuration.LoggingRules.Add(new NLog.Config.LoggingRule("*", loglevel, target));
+								}
 							}
 							break;
 						default:
