@@ -24,6 +24,8 @@
 * **ポータブル運用に対応**
   * インストーラー不要で単一の `WinAuth.exe` から実行可能
   * 実行ファイルと同じフォルダに設定ファイルを配置することで、レジストリや他フォルダを変更しないポータブルモードで動作
+    * 例：`start "" "%~dp0WinAuth\WinAuth.exe" "%~dp0WinAuth\winauth.xml"`
+    * `winauth.xml`は、デフォルトでは Windows のローミングプロファイル配下（%AppData%\WinAuth\winauth.xml、例: C:\Users\<ユーザー名>\AppData\Roaming\WinAuth\winauth.xml）に保存されます。
 * **強化されたセキュリティと後方互換性**
   * **WINAUTH4 暗号基盤**: PBKDF2（600,000 反復）による鍵導出と **AES-256-GCM**（認証付き暗号）により、秘密鍵データの機密性と完全性（改ざん検知）を保護
   * ユーザー設定のパスワード保護に加え、Windows アカウント／マシンへの紐付け（DPAPI）、YubiKey によるハードウェア保護、認証器単位での個別パスワード設定に対応
