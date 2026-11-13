@@ -263,22 +263,11 @@ namespace MetroFramework.Controls
 
         #region Routing Fields
 
-        public override ContextMenu ContextMenu
-        {
-            get { return baseTextBox.ContextMenu; }
-            set 
-            {
-                ContextMenu = value;
-                baseTextBox.ContextMenu = value; 
-            }
-        }
-
         public override ContextMenuStrip ContextMenuStrip
         {
             get { return baseTextBox.ContextMenuStrip; }
             set
             {
-                ContextMenuStrip = value;
                 baseTextBox.ContextMenuStrip = value;
             }
         }

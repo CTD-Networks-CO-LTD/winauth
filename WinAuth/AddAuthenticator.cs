@@ -246,7 +246,7 @@ namespace WinAuth
             {
               using (Bitmap bitmap = (Bitmap)Bitmap.FromStream(response.GetResponseStream()))
               {
-                IBarcodeReader reader = new BarcodeReader();
+                var reader = new BarcodeReader();
                 var result = reader.Decode(bitmap);
                 if (result != null && string.IsNullOrEmpty(result.Text) == false)
                 {
@@ -400,7 +400,7 @@ namespace WinAuth
             {
               using (Bitmap bitmap = (Bitmap)Bitmap.FromStream(response.GetResponseStream()))
               {
-                IBarcodeReader reader = new BarcodeReader();
+                var reader = new BarcodeReader();
                 var result = reader.Decode(bitmap);
                 if (result != null)
                 {
@@ -423,7 +423,7 @@ namespace WinAuth
         {
           using (Bitmap bitmap = (Bitmap)Bitmap.FromStream(ms))
           {
-            IBarcodeReader reader = new BarcodeReader();
+            var reader = new BarcodeReader();
             var result = reader.Decode(bitmap);
             if (result != null)
             {
@@ -437,7 +437,7 @@ namespace WinAuth
         // assume this is the image file
         using (Bitmap bitmap = (Bitmap)Bitmap.FromFile(privatekey))
         {
-          IBarcodeReader reader = new BarcodeReader();
+          var reader = new BarcodeReader();
           var result = reader.Decode(bitmap);
           if (result != null)
           {
