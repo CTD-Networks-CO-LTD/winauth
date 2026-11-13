@@ -706,7 +706,7 @@ namespace WinAuth
         issuer = match.Groups[1].Value;
         label = match.Groups[2].Value + match.Groups[3].Value;
       }
-      if (string.IsNullOrEmpty(issuer) == false && (match = Regex.Match(label, @"^" + issuer + @"\s+\((.*?)\)(.*)")).Success == true)
+      if (string.IsNullOrEmpty(issuer) == false && (match = Regex.Match(label, @"^" + Regex.Escape(issuer) + @"\s+\((.*?)\)(.*)", RegexOptions.None, TimeSpan.FromMilliseconds(500))).Success == true)
       {
         label = match.Groups[1].Value + match.Groups[2].Value;
       }

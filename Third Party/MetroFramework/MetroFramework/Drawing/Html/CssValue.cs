@@ -2,7 +2,7 @@
  * A Professional HTML Renderer You Will Use
  * 
  * The BSD License (BSD)
- * Copyright (c) 2011 Jose Menendez Póo, http://www.codeproject.com/Articles/32376/A-Professional-HTML-Renderer-You-Will-Use
+ * Copyright (c) 2011 Jose Menendez Pï¿½o, http://www.codeproject.com/Articles/32376/A-Professional-HTML-Renderer-You-Will-Use
  * 
  * Redistribution and use in source and binary forms, with or without modification, are 
  * permitted provided that the following conditions are met:
@@ -367,86 +367,48 @@ namespace MetroFramework.Drawing.Html
         }
 
         /// <summary>
-        /// Returns the object specific to the path
+        /// Returns the object specific to the path (Hardened: reflection resolution removed, UNC paths blocked - VULN-08)
         /// </summary>
         /// <param name="path"></param>
-        /// <returns>One of the following possible objects: FileInfo, MethodInfo, PropertyInfo</returns>
+        /// <returns>Uri or null</returns>
         private static object DetectSource(string path)
         {
-            if (path.StartsWith("method:", StringComparison.CurrentCultureIgnoreCase))
-            {
-                string methodName = string.Empty;
-                Type t = GetTypeInfo(path.Substring(7), ref methodName); if (t == null) return null;
-                MethodInfo method = t.GetMethod(methodName);
+            if (string.IsNullOrEmpty(path)) return null;
 
-                if (!method.IsStatic || method.GetParameters().Length > 0)
+            // Block reflection-based execution attempts (method: and property:)
+            if (path.StartsWith("method:", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("property:", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            // Block UNC paths to prevent NTLM credential leakage
+            if (path.StartsWith(@"\\") || path.StartsWith("//"))
+            {
+                return null;
+            }
+
+            if (Uri.TryCreate(path, UriKind.Absolute, out Uri uri))
+            {
+                // Disallow UNC or file URIs
+                if (uri.IsUnc || uri.IsFile)
                 {
                     return null;
                 }
+                return uri;
+            }
 
-                return method;
-            }
-            else if (path.StartsWith("property:", StringComparison.CurrentCultureIgnoreCase))
-            {
-                string propName = string.Empty;
-                Type t = GetTypeInfo(path.Substring(9), ref propName); if (t == null) return null;
-                PropertyInfo prop = t.GetProperty(propName);
-
-                return prop;
-            }
-            else if (Uri.IsWellFormedUriString(path, UriKind.RelativeOrAbsolute))
-            {
-                return new Uri(path);
-            }
-            else
-            {
-                return new FileInfo(path);
-            }
+            return null;
         }
 
         /// <summary>
-        /// Gets the image of the specified path
+        /// Gets the image of the specified path (safe stub - local/UNC file load prohibited)
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
         public static Image GetImage(string path)
         {
-            object source = DetectSource(path);
-
-            FileInfo finfo = source as FileInfo;
-            PropertyInfo prop = source as PropertyInfo;
-            MethodInfo method = source as MethodInfo;
-
-            try
-            {
-                if (finfo != null)
-                {
-                    if (!finfo.Exists) return null;
-
-                    return Image.FromFile(finfo.FullName);
-
-                }
-                else if (prop != null)
-                {
-                    if (!prop.PropertyType.IsSubclassOf(typeof(Image)) && !prop.PropertyType.Equals(typeof(Image))) return null;
-                    
-                    return prop.GetValue(null, null) as Image;
-                }
-                else if (method != null)
-                {
-                    if (!method.ReturnType.IsSubclassOf(typeof(Image))) return null;
-
-                    return method.Invoke(null, null) as Image;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            catch
-            {
-                return new Bitmap(50, 50); //TODO: Return error image
-            }
+            return null;
         }
 
         /// <summary>
@@ -498,40 +460,21 @@ namespace MetroFramework.Drawing.Html
         }
 
         /// <summary>
-        /// Executes the desired action when the user clicks a link
+        /// Executes the desired action when the user clicks a link (Strict HTTPS only - VULN-08)
         /// </summary>
         /// <param name="href"></param>
         public static void GoLink(string href)
         {
-            object source = DetectSource(href);
+            if (string.IsNullOrEmpty(href)) return;
 
-            FileInfo finfo = source as FileInfo;
-            PropertyInfo prop = source as PropertyInfo;
-            MethodInfo method = source as MethodInfo;
-            Uri uri = source as Uri;
-
-            try
+            if (Uri.TryCreate(href, UriKind.Absolute, out Uri uri) &&
+                string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             {
-                if (finfo != null || uri != null)
+                ProcessStartInfo nfo = new ProcessStartInfo(uri.AbsoluteUri)
                 {
-                    ProcessStartInfo nfo = new ProcessStartInfo(href);
-                    nfo.UseShellExecute = true;
-
-                    Process.Start(nfo);
-
-                }
-                else if (method != null)
-                {
-                    method.Invoke(null, null);
-                }
-                else
-                {
-                    //Nothing to do.
-                }
-            }
-            catch
-            {
-                throw;
+                    UseShellExecute = true
+                };
+                Process.Start(nfo);
             }
         }
     }

@@ -58,7 +58,7 @@ namespace WinAuth
   /// <summary>
   /// Class proving helper functions to save data for application
   /// </summary>
-  class WinAuthHelper
+  public class WinAuthHelper
   {
     /// <summary>
     /// Registry key for application
@@ -951,6 +951,9 @@ namespace WinAuth
 						break;
 					case '"':
 						sb.Append("&quot;");
+						break;
+					case '\'':
+						sb.Append("&#39;");
 						break;
 					case '&':
 						sb.Append("&amp;");

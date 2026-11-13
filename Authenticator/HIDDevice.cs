@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2015	 Colin Mackie.
  * This software is distributed under the terms of the GNU General Public License.
  *
@@ -121,21 +121,12 @@ namespace WinAuth
 			public string DevicePath;
 		}
 
-		[DllImport(@"setupapi.dll", SetLastError = true)]
+
+		[DllImport(@"setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
 		private static extern Boolean SetupDiGetDeviceInterfaceDetail(
 			IntPtr hDevInfo,
 			ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData,
 			IntPtr deviceInterfaceDetailData,
-			UInt32 deviceInterfaceDetailDataSize,
-			out UInt32 requiredSize,
-			IntPtr deviceInfoData
-		);
-
-		[DllImport(@"setupapi.dll", SetLastError = true)]
-		private static extern Boolean SetupDiGetDeviceInterfaceDetail(
-			IntPtr hDevInfo,
-			ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData,
-			ref SP_DEVICE_INTERFACE_DETAIL_DATA deviceInterfaceDetailData,
 			UInt32 deviceInterfaceDetailDataSize,
 			out UInt32 requiredSize,
 			IntPtr deviceInfoData
@@ -322,37 +313,48 @@ namespace WinAuth
 				UInt32 size;
 				SetupDiGetDeviceInterfaceDetail(devicesHandle, ref diData, IntPtr.Zero, 0, out size, IntPtr.Zero);
 
-				// Uh...yeah.
-				var diDetail = new SP_DEVICE_INTERFACE_DETAIL_DATA();
-				diDetail.cbSize = (uint)(IntPtr.Size == 8 ? 8 : 5);
-
-				//Get detailed information
-				if (SetupDiGetDeviceInterfaceDetail(devicesHandle, ref diData, ref diDetail, size, out size, IntPtr.Zero))
+				if (size > 0)
 				{
-					//Get a handle to this device
-					var handle = CreateFile(diDetail.DevicePath, 4 /*GENERIC_WRITE*/, 3 /*FILE_SHARE_READ | FILE_SHARE_WRITE*/, IntPtr.Zero, 4 /*OPEN_EXISTING*/, 0, IntPtr.Zero);
-					if (handle.IsInvalid == false)
+					IntPtr pDetail = Marshal.AllocHGlobal((int)size);
+					try
 					{
-						//Get this device's attributes
-						var attrib = new HIDD_ATTRIBUTES();
-						attrib.Size = Marshal.SizeOf(attrib);
-						if (HidD_GetAttributes(handle.DangerousGetHandle(), ref attrib))
+						int cbSize = (IntPtr.Size == 8 ? 8 : (int)(4 + Marshal.SystemDefaultCharSize));
+						Marshal.WriteInt32(pDetail, cbSize);
+
+						//Get detailed information (dynamically allocated buffer - VULN-06 fix)
+						if (SetupDiGetDeviceInterfaceDetail(devicesHandle, ref diData, pDetail, size, out _, IntPtr.Zero))
 						{
-							int vid = attrib.VendorID & 0xFFFF;
-							int pid = attrib.ProductID & 0xFFFF;
-							//See if this is one we care about
-							if ((!vendorId.HasValue || vid == vendorId.Value) &&
-								(!productId.HasValue || pid == productId.Value))
+							IntPtr pPath = (IntPtr)((long)pDetail + 4);
+							string devPath = Marshal.PtrToStringAuto(pPath);
+
+							//Get a handle to this device
+							var handle = CreateFile(devPath, 4 /*GENERIC_WRITE*/, 3 /*FILE_SHARE_READ | FILE_SHARE_WRITE*/, IntPtr.Zero, 4 /*OPEN_EXISTING*/, 0, IntPtr.Zero);
+							if (handle.IsInvalid == false)
 							{
-								devices.Add(new HIDDeviceEntry(diDetail.DevicePath, vid, pid));
-								break;
+								//Get this device's attributes
+								var attrib = new HIDD_ATTRIBUTES();
+								attrib.Size = Marshal.SizeOf(attrib);
+								if (HidD_GetAttributes(handle.DangerousGetHandle(), ref attrib))
+								{
+									int vid = attrib.VendorID & 0xFFFF;
+									int pid = attrib.ProductID & 0xFFFF;
+									//See if this is one we care about
+									if ((!vendorId.HasValue || vid == vendorId.Value) &&
+										(!productId.HasValue || pid == productId.Value))
+									{
+										devices.Add(new HIDDeviceEntry(devPath, vid, pid));
+										handle.Close();
+										break;
+									}
+								}
+								handle.Close();
 							}
 						}
 					}
-
-					//Close the handle
-					handle.Close();
-					//CloseHandle(handle);
+					finally
+					{
+						Marshal.FreeHGlobal(pDetail);
+					}
 				}
 
 				//Move on
@@ -469,12 +471,24 @@ namespace WinAuth
 				_SP_DEVICE_INTERFACE_DATA.cbSize = Marshal.SizeOf(_SP_DEVICE_INTERFACE_DATA);
 				result = SetupDiEnumDeviceInterfaces(_hDeviceInfo, IntPtr.Zero, ref _guid, deviceCount, ref _SP_DEVICE_INTERFACE_DATA);
 				SetupDiGetDeviceInterfaceDetail(_hDeviceInfo, ref _SP_DEVICE_INTERFACE_DATA, IntPtr.Zero, 0, out requiredSize, IntPtr.Zero);
-				size = requiredSize;
-				var diDetail = new SP_DEVICE_INTERFACE_DETAIL_DATA();
-				diDetail.cbSize = (uint)(IntPtr.Size == 8 ? 8 : 5);
-				SetupDiGetDeviceInterfaceDetail(_hDeviceInfo, ref _SP_DEVICE_INTERFACE_DATA, ref diDetail,
-					size, out requiredSize, IntPtr.Zero);
-				_devicePath = diDetail.DevicePath;
+				if (requiredSize > 0)
+				{
+					IntPtr pDetail = Marshal.AllocHGlobal((int)requiredSize);
+					try
+					{
+						int cbSize = (IntPtr.Size == 8 ? 8 : (int)(4 + Marshal.SystemDefaultCharSize));
+						Marshal.WriteInt32(pDetail, cbSize);
+						if (SetupDiGetDeviceInterfaceDetail(_hDeviceInfo, ref _SP_DEVICE_INTERFACE_DATA, pDetail, requiredSize, out _, IntPtr.Zero))
+						{
+							IntPtr pPath = (IntPtr)((long)pDetail + 4);
+							_devicePath = Marshal.PtrToStringAuto(pPath);
+						}
+					}
+					finally
+					{
+						Marshal.FreeHGlobal(pDetail);
+					}
+				}
 
 				if (_devicePath == devicePath)
 				{

@@ -60,6 +60,11 @@ namespace WinAuth
 		/// Optional changes
 		/// </summary>
 		public string Changes;
+		/// <summary>
+		/// SHA-256 hash of the release package for verification (VULN-15)
+		/// </summary>
+		public string Sha256;
+
 
 		/// <summary>
 		/// Create the new version instance
@@ -428,6 +433,12 @@ namespace WinAuth
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
 				{
 					latestversion.Changes = node.InnerText;
+				node = xml.SelectSingleNode("//sha256");
+				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
+				{
+					latestversion.Sha256 = node.InnerText.Trim();
+				}
+
 				}
 
 				return latestversion;

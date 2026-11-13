@@ -60,9 +60,9 @@ namespace WinAuth
     /// URL to get latest information
     /// </summary>
 #if BETA
-		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/winauth/winauth/master/docs/current-beta-version.xml";
+		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-beta-version.xml";
 #else
-    public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/winauth/winauth/master/docs/current-version.xml";
+		public const string WINAUTH_UPDATE_URL = "https://raw.githubusercontent.com/CTD-Networks-CO-LTD/winauth/master/docs/current-version.xml";
 #endif
 
 		/// <summary>

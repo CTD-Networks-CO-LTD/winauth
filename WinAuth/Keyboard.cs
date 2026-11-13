@@ -259,10 +259,12 @@ namespace WinAuth
 										SendKey('\n', delay, repeat);
 										break;
 									case "WAIT":
-										for (; repeat > 0; repeat--)
+										long totalWaitMs = (long)repeat * delay;
+										if (totalWaitMs > 10000)
 										{
-											System.Threading.Thread.Sleep(delay);
+											totalWaitMs = 10000;
 										}
+										System.Threading.Thread.Sleep((int)totalWaitMs);
 										break;
 									case "COPY":
 										form.Invoke(new WinAuthForm.SetClipboardDataDelegate(form.SetClipboardData), new object[] { code });
@@ -362,9 +364,9 @@ namespace WinAuth
 				return WinAPI.GetForegroundWindow();
 			}
 
-			// build regex
+			// build regex with timeout to prevent ReDoS (VULN-19)
 			Regex reg;
-			Match match = Regex.Match(window, @"/(.*)/([a-z]*)", RegexOptions.IgnoreCase);
+			Match match = Regex.Match(window, @"/(.*)/([a-z]*)", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
 			if (match.Success == true)
 			{
 				RegexOptions regoptions = RegexOptions.None;
@@ -372,11 +374,11 @@ namespace WinAuth
 				{
 					regoptions |= RegexOptions.IgnoreCase;
 				}
-				reg = new Regex(match.Groups[1].Value, regoptions);
+				reg = new Regex(match.Groups[1].Value, regoptions, TimeSpan.FromMilliseconds(500));
 			}
 			else
 			{
-				reg = new Regex(Regex.Escape(window), RegexOptions.IgnoreCase);
+				reg = new Regex(Regex.Escape(window), RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
 			}
 
 

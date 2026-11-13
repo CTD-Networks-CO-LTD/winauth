@@ -204,7 +204,9 @@ int _ykusb_get_vid_pid(void *yk, int *vid, int *pid) {
 const char *_ykusb_strerror(void)
 {
 	static char buf[1024];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), 0,
-			(LPWSTR)buf, sizeof(buf), NULL);
+	buf[0] = '\0';
+	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, GetLastError(), 0,
+			buf, (DWORD)(sizeof(buf) - 1), NULL);
 	return buf;
 }

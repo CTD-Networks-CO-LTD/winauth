@@ -248,6 +248,7 @@ __declspec(dllexport) int SetChallengeResponse(uint32_t slot, const unsigned cha
 		_lastError = yk_errno;
 	}
 	yk_close_key(key);
+	SecureZeroMemory(&config, sizeof(config));
 
 	return result;
 }

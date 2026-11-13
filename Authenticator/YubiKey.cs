@@ -329,9 +329,8 @@ namespace WinAuth
 		}
 
 		/// <summary>
-		/// Load the 32 or 64 bit native YubiKey DLL depending on current platform, or download from winauth servers
+		/// Load the 32 or 64 bit native YubiKey DLL safely from embedded resources (VULN-05 fix)
 		/// </summary>
-		/// <param name="downloadIfNeeded">option to download DLL if required</param>
 		private void LoadLibrary()
 		{
 			if (_library != IntPtr.Zero)
@@ -342,31 +341,53 @@ namespace WinAuth
 			// load the library
 			var libraryname = (IntPtr.Size == 4 ? YUBI_LIBRARY_NAME_X86 : YUBI_LIBRARY_NAME_X64);
 
-			// create temp file
-			_libraryPath = Path.GetTempFileName();
-			File.Delete(_libraryPath);
-			_libraryPath += ".dll";
-
-			// extract the DLL from our resources
+			byte[] resourceBytes;
+			string hashHex;
 			using (var ins = typeof(Authenticator).Assembly.GetManifestResourceStream("WinAuth.Resources." + libraryname))
 			{
-				using (var outs = new FileStream(_libraryPath, FileMode.Create, FileAccess.Write))
+				if (ins == null)
 				{
-					var buffer = new byte[4096];
-					int read;
-					while ((read = ins.Read(buffer, 0, buffer.Length)) != 0)
-					{
-						outs.Write(buffer, 0, read);
-					}
+					throw new LibraryNotFoundException("YubiKey native library resource not found: " + libraryname);
+				}
+				using (var ms = new MemoryStream())
+				{
+					ins.CopyTo(ms);
+					resourceBytes = ms.ToArray();
+				}
+				using (var sha = SHA256.Create())
+				{
+					hashHex = BitConverter.ToString(sha.ComputeHash(resourceBytes)).Replace("-", "").Substring(0, 16).ToLowerInvariant();
 				}
 			}
 
-			// load the library
-			_library = LoadLibrary(_libraryPath);
-			if (_library == IntPtr.Zero)
+			// Deploy to protected user LocalAppData directory rather than shared %TEMP% (TOCTOU prevention)
+			string nativeDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinAuth", "Native", hashHex);
+			Directory.CreateDirectory(nativeDir);
+			_libraryPath = Path.Combine(nativeDir, libraryname);
+
+			if (!File.Exists(_libraryPath))
 			{
-				int error = Marshal.GetLastWin32Error();
-				throw new LibraryNotFoundException("Cannot load the YubiKey AddOn: " + error);
+				string tempDeploy = _libraryPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+				File.WriteAllBytes(tempDeploy, resourceBytes);
+				try
+				{
+					File.Move(tempDeploy, _libraryPath);
+				}
+				catch (IOException)
+				{
+					// Concurrent process already deployed
+					File.Delete(tempDeploy);
+				}
+			}
+
+			// Load library safely using .NET 10 NativeLibrary
+			try
+			{
+				_library = NativeLibrary.Load(_libraryPath);
+			}
+			catch (Exception ex)
+			{
+				throw new LibraryNotFoundException("Cannot load the YubiKey AddOn: " + ex.Message, ex);
 			}
 		}
 

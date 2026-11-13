@@ -20,5 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Authenticator\Authenticator.csproj" />
+    <ProjectReference Include="..\WinAuth\WinAuth.csproj" />
   </ItemGroup>
 </Project>

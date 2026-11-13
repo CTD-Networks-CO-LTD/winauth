@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <WinAuth>
 	<version>3.6.2</version>
-	<released>2017-10-24</released>
-	<url>https://github.com/winauth/winauth/releases/download/3.6.2/WinAuth.zip</url>
-	<url35>https://github.com/winauth/winauth/releases/download/3.6.2/WinAuth-NET35.zip</url35>
-	<changes></changes>
+	<released>2026-11-13</released>
+	<url>https://github.com/CTD-Networks-CO-LTD/winauth/releases/download/3.6.2/WinAuth-3.6.2.zip</url>
+	<sha256></sha256>
+	<changes>Security hardening and .NET 10 migration</changes>
 </WinAuth>
