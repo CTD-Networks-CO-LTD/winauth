@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <DefineConstants>$(DefineConstants);NETFX_4</DefineConstants>
-    <NoWarn>$(NoWarn);WFO1000;WFDEV004;WFDEV006;CA1416;SYSLIB0014;SYSLIB0023;SYSLIB0060;NU1510;CS0618</NoWarn>
+    <NoWarn>$(NoWarn);WFO1000;WFDEV004;WFDEV006;CA1416;SYSLIB0014;SYSLIB0023;SYSLIB0060;NU1510;CS0618;CS8981</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
