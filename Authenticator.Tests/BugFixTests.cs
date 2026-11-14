@@ -270,5 +270,34 @@ namespace AuthenticatorTests
 
         #endregion
 
+        #region AppHost ランタイム探索設定（DOTNET_ROOT 非依存化）検証
+
+        [Fact]
+        public void WinAuthCsproj_ConfiguresAppHostDotNetSearchToAppLocalAndGlobal()
+        {
+            string? dir = AppContext.BaseDirectory;
+            string? csprojPath = null;
+            for (int i = 0; i < 8 && !string.IsNullOrEmpty(dir); i++)
+            {
+                string candidate = Path.Combine(dir, "WinAuth", "WinAuth.csproj");
+                if (File.Exists(candidate))
+                {
+                    csprojPath = candidate;
+                    break;
+                }
+                dir = Directory.GetParent(dir)?.FullName;
+            }
+
+            Assert.NotNull(csprojPath);
+
+            var doc = new System.Xml.XmlDocument { XmlResolver = null };
+            doc.Load(csprojPath!);
+            var node = doc.SelectSingleNode("/Project/PropertyGroup/AppHostDotNetSearch");
+            Assert.NotNull(node);
+            Assert.Equal("AppLocal;Global", node!.InnerText.Trim());
+        }
+
+        #endregion
+
     }
 }

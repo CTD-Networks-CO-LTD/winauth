@@ -82,6 +82,9 @@ dotnet publish "WinAuth/WinAuth.csproj" `
 
 成功すると、`./publish/WinAuth.exe` に配布可能な単一実行ファイルが出力されます（実行にはターゲット環境に .NET 10 Desktop Runtime が必要です。ランタイムごと同梱する場合は `--self-contained true` を指定してください）。
 
+> **補足（ランタイム探索設定 `AppHostDotNetSearch`）**:
+> `WinAuth/WinAuth.csproj` では `<AppHostDotNetSearch>AppLocal;Global</AppHostDotNetSearch>` を設定しているため、発行された単一 `WinAuth.exe` の `apphost` は実行ファイルと同階層（`AppLocal`）およびシステム標準のインストール先（`Global`: `C:\Program Files\dotnet\` 等）のみからランタイムを探索します。これにより、利用者の端末に不完全な `DOTNET_ROOT` / `DOTNET_ROOT_X64` 環境変数が残存していても干渉を受けず、公式インストーラーで導入された .NET 10 Desktop Runtime を確実に認識して起動します。
+
 ---
 
 ## 3. Visual Studio でのビルド
