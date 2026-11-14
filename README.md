@@ -56,7 +56,7 @@
 ## 動作環境
 
 * **対応 OS**: Windows 10 / Windows 11（x64）
-* **必須ランタイム**: [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)（Windows デスクトップ ランタイム 10.0）
+* **必須ランタイム**: [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0)（Windows デスクトップ ランタイム 10.0）
 
 ---
 
@@ -70,7 +70,7 @@
 ※バイナリの整合性検証が必要な場合は、GitHub Releases ページに表示される SHA-256 ダイジェストをご確認ください。
 
 ### 基本的な使い方
-1. 事前に .NET 10 Desktop Runtime がインストールされていることを確認します。
+1. 事前に [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) がインストールされていることを確認します（未導入の状態で起動した場合は表示される案内に従って公式インストーラーを導入してください）。
 2. ダウンロードした ZIP ファイルを展開し、`WinAuth.exe` を任意のフォルダに配置して起動します（インストール作業は不要です）。
 3. **［Add］** ボタンをクリックし、認証器の追加またはインポートを行います。
 4. 登録した認証器を右クリックすると、コードのコピーや詳細設定などのコンテキストメニューが表示されます。
@@ -105,6 +105,16 @@ WinAuth はオープンソースソフトウェアとして公開されており
 #### 認証器のデータはどこに保存されますか？
 クラウドや外部サーバーには一切保存されません。デフォルトでは Windows のローミングプロファイル配下（`%AppData%\WinAuth\winauth.xml`、例: `C:\Users\<ユーザー名>\AppData\Roaming\WinAuth\winauth.xml`）に保存されます。
 また、`winauth.xml` を `WinAuth.exe` と同じフォルダに配置する（ポータブルモード）か、起動時のコマンドライン引数で任意のファイルパスを指定して使用することも可能です。PC の故障や紛失に備え、定期的にバックアップを取得してください。
+
+#### .NET 10 Desktop Runtime をインストールしたのに「You must install or update .NET to run this application.」と表示されて起動しません
+旧バージョンのバイナリをご利用の場合、過去の開発環境等で設定されたユーザー／システム環境変数 `DOTNET_ROOT`（例: `C:\Users\<ユーザー名>\.dotnet`）が残存していると、システム標準パス（`C:\Program Files\dotnet\`）のランタイムが認識されないことがあります。
+最新の修正版へアップデートするか、不要な環境変数 `DOTNET_ROOT` を削除して端末を再起動（またはサインアウト／再サインイン）してください。
+
+```powershell
+# PowerShell でユーザー環境変数 DOTNET_ROOT を確認・削除する例
+[System.Environment]::GetEnvironmentVariable('DOTNET_ROOT', 'User')
+[System.Environment]::SetEnvironmentVariable('DOTNET_ROOT', $null, 'User')
+```
 
 ---
 

@@ -5,6 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <StartupObject>WinAuth.WinAuthMain</StartupObject>
     <ApplicationIcon>winauth.ico</ApplicationIcon>
+    <AppHostDotNetSearch>AppLocal;Global</AppHostDotNetSearch>
     <Product>WinAuth</Product>
     <Description>WinAuth - The Windows Authenticator</Description>
     <Company>CTD Networks Co., Ltd.</Company>
