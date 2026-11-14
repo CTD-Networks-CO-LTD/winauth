@@ -423,10 +423,18 @@ namespace AuthenticatorTests
                 var importItem = Assert.IsType<ToolStripMenuItem>(addItems.First(i => i.Name == "importTextMenuItem"));
                 Assert.Equal("インポート...", importItem.Text);
 
-                // Verify UpdateCheckForm ("更新の確認...") is localized
-                using var updateForm = new UpdateCheckForm { Config = config };
+                // Verify UpdateCheckForm ("更新の確認...") is localized and checkbox defaults to unchecked
+                var mockUpdater = new WinAuthUpdater(null)
+                {
+                    OverrideFeedProvider = () => @"[{""tag_name"":""4.1.1"",""draft"":false,""prerelease"":true,""html_url"":""https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.1.1""}]"
+                };
+                Assert.False(mockUpdater.IsAutoCheck, "IsAutoCheck should be false by default when no setting exists.");
+                using var updateForm = new UpdateCheckForm { Config = null, Updater = mockUpdater };
                 updateForm.Show();
                 Assert.Equal("更新の確認", updateForm.Text);
+                var autoCheckbox = Assert.IsType<MetroFramework.Controls.MetroCheckBox>(
+                    updateForm.Controls.Find("autoCheckbox", true).First());
+                Assert.False(autoCheckbox.Checked, "autoCheckbox should be unchecked by default on first run.");
                 var autoLabel = updateForm.Controls.Find("autoLabel", true).First();
                 Assert.Equal("WinAuth の起動時に自動的に更新を確認する", autoLabel.Text);
                 var cancelButton = updateForm.Controls.Find("cancelButton", true).First();
@@ -453,6 +461,56 @@ namespace AuthenticatorTests
 
                 mainForm.Close();
             });
+        }
+
+        [Fact]
+        public void WinAuthUpdater_ParsesGitHubReleasesJson_AndIgnoresDraftAndSupportsLegacyXml()
+        {
+            Assert.False(string.IsNullOrWhiteSpace(WinAuthMain.WINAUTH_UPDATE_URL));
+            Assert.Contains("CTD-Networks-CO-LTD/winauth/releases", WinAuthMain.WINAUTH_UPDATE_URL);
+
+            var updater = new WinAuthUpdater(null);
+
+            string githubJson = @"[
+              {
+                ""tag_name"": ""4.2.0"",
+                ""draft"": true,
+                ""prerelease"": false,
+                ""html_url"": ""https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.2.0"",
+                ""published_at"": ""2026-11-15T00:00:00Z""
+              },
+              {
+                ""tag_name"": ""4.1.1"",
+                ""draft"": false,
+                ""prerelease"": true,
+                ""html_url"": ""https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.1.1"",
+                ""published_at"": ""2026-11-14T00:13:11Z"",
+                ""body"": ""Release 4.1.1""
+              },
+              {
+                ""tag_name"": ""4.1.0"",
+                ""draft"": false,
+                ""prerelease"": false,
+                ""html_url"": ""https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.1.0"",
+                ""published_at"": ""2026-11-13T04:06:17Z""
+              }
+            ]";
+
+            var info = updater.ParseGetLatestVersion(githubJson);
+            Assert.NotNull(info);
+            Assert.Equal(new Version(4, 1, 1), info.Version);
+            Assert.Equal("https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.1.1", info.Url);
+            Assert.Equal("Release 4.1.1", info.Changes);
+
+            // Legacy XML compatibility
+            string legacyXml = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<winauth>
+  <version>4.1.2</version>
+  <url>https://github.com/CTD-Networks-CO-LTD/winauth/releases/tag/4.1.2</url>
+</winauth>";
+            var xmlInfo = updater.ParseGetLatestVersion(legacyXml);
+            Assert.NotNull(xmlInfo);
+            Assert.Equal(new Version(4, 1, 2), xmlInfo.Version);
         }
     }
 }

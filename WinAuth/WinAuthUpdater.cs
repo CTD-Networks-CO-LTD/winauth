@@ -22,9 +22,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
@@ -194,36 +196,80 @@ namespace WinAuth
 		}
 
 		/// <summary>
+		/// Shared HttpClient for update checks (TLS 1.2/1.3)
+		/// </summary>
+		private static readonly HttpClient _httpClient = CreateHttpClient();
+
+		private static HttpClient CreateHttpClient()
+		{
+			var client = new HttpClient
+			{
+				Timeout = TimeSpan.FromSeconds(15)
+			};
+			return client;
+		}
+
+		/// <summary>
+		/// Optional feed provider override for offline unit testing.
+		/// </summary>
+		internal Func<string> OverrideFeedProvider { get; set; }
+
+		/// <summary>
+		/// Normalize a Version to 3 components (Major.Minor.Build) for reliable comparison.
+		/// </summary>
+		public static Version NormalizeVersion(Version version)
+		{
+			if (version == null)
+			{
+				return null;
+			}
+			int build = version.Build >= 0 ? version.Build : 0;
+			return new Version(version.Major, version.Minor, build);
+		}
+
+		/// <summary>
+		/// Parse a version tag such as "4.1.1" or "v4.1.1-beta" into a normalized Version.
+		/// </summary>
+		internal static bool TryParseReleaseVersion(string tag, out Version version)
+		{
+			version = null;
+			if (string.IsNullOrWhiteSpace(tag))
+			{
+				return false;
+			}
+
+			var match = Regex.Match(tag.Trim(), @"^[vV]?(\d+\.\d+\.\d+(?:\.\d+)?)");
+			if (!match.Success)
+			{
+				return false;
+			}
+
+			if (Version.TryParse(match.Groups[1].Value, out Version parsed))
+			{
+				version = NormalizeVersion(parsed);
+				return true;
+			}
+
+			return false;
+		}
+
+		/// <summary>
 		/// Get the current version
 		/// </summary>
 		public Version CurrentVersion
 		{
 			get
 			{
-				Version version;
-#if NETFX_4
-				string executablePath = Environment.ProcessPath;
-				string fileVersion = string.IsNullOrEmpty(executablePath) == false ? FileVersionInfo.GetVersionInfo(executablePath).FileVersion : null;
-				if (Version.TryParse(fileVersion, out version) == false)
+				if (TryParseReleaseVersion(WinAuthHelper.GetVersionString(), out Version ver))
 				{
-					version = Assembly.GetExecutingAssembly().GetName().Version;
+					return ver;
 				}
-				if (version == null)
+				Version asmVer = typeof(WinAuthUpdater).Assembly.GetName().Version;
+				if (asmVer != null)
 				{
-					throw new InvalidOperationException("Cannot get Assembly version information");
+					return NormalizeVersion(asmVer);
 				}
-#endif
-#if NETFX_3
-				try
-				{
-					version = new Version(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion);
-				}
-				catch (Exception)
-				{
-					throw new InvalidOperationException("Cannot get Assembly version information");
-				}
-#endif
-				return version;
+				throw new InvalidOperationException("Cannot get Assembly version information");
 			}
 		}
 
@@ -277,19 +323,19 @@ namespace WinAuth
 				// only if autochecking is on, and is due, and we don't already have a later version
 				if (this.IsAutoCheck == true
 					&& _autocheckInterval.HasValue && _lastCheck.Add(_autocheckInterval.Value) < DateTime.Now
-					&& (LastKnownLatestVersion == null || LastKnownLatestVersion <= this.CurrentVersion))
+					&& (LastKnownLatestVersion == null || NormalizeVersion(LastKnownLatestVersion) <= this.CurrentVersion))
 				{
 					// update the last check time
 					_lastCheck = DateTime.Now;
-					Config.WriteSetting(WINAUTHREGKEY_LASTCHECK, _lastCheck.Ticks.ToString());
+					Config?.WriteSetting(WINAUTHREGKEY_LASTCHECK, _lastCheck.Ticks.ToString());
 
 					// check for latest version
 					try
 					{
 						var latest = GetLatestVersion();
-						if (latest != null && latest.Version > this.CurrentVersion)
+						if (latest != null && NormalizeVersion(latest.Version) > this.CurrentVersion)
 						{
-							callback(latest.Version);
+							callback?.Invoke(latest.Version);
 						}
 					}
 					catch (Exception) { }
@@ -307,6 +353,29 @@ namespace WinAuth
 		/// <returns>latest WinAuthVersionInfo or null if async</returns>
 		public virtual WinAuthVersionInfo GetLatestVersion(Action<WinAuthVersionInfo, bool, Exception> callback = null)
 		{
+			if (OverrideFeedProvider != null)
+			{
+				try
+				{
+					string mockResult = OverrideFeedProvider();
+					WinAuthVersionInfo latestVersion = !string.IsNullOrWhiteSpace(mockResult)
+						? ParseGetLatestVersion(mockResult)
+						: null;
+					if (latestVersion != null)
+					{
+						LastKnownLatestVersion = latestVersion.Version;
+						Config?.WriteSetting(WINAUTHREGKEY_LATESTVERSION, latestVersion.Version.ToString(3));
+					}
+					callback?.Invoke(latestVersion, false, null);
+					return latestVersion;
+				}
+				catch (Exception ex)
+				{
+					callback?.Invoke(null, false, ex);
+					return null;
+				}
+			}
+
 			// get the update URL from the config else use the default
 			string updateUrl = WinAuthMain.WINAUTH_UPDATE_URL;
 			try
@@ -330,86 +399,79 @@ namespace WinAuth
 			}
 			try
 			{
-				using (WebClient web = new WebClient())
+				if (callback == null)
 				{
-					web.Headers.Add("User-Agent", "WinAuth-" + this.CurrentVersion.ToString());
-					if (callback == null)
+					string result = FetchUpdateFeedString(updateUrl);
+					WinAuthVersionInfo latestVersion = ParseGetLatestVersion(result);
+					if (latestVersion != null)
 					{
-						// immediate request
-						string result = web.DownloadString(updateUrl);
-						WinAuthVersionInfo latestVersion = ParseGetLatestVersion(result);
-						if (latestVersion != null)
+						LastKnownLatestVersion = latestVersion.Version;
+						Config?.WriteSetting(WINAUTHREGKEY_LATESTVERSION, latestVersion.Version.ToString(3));
+					}
+					return latestVersion;
+				}
+				else
+				{
+					System.Threading.Tasks.Task.Run(() =>
+					{
+						try
 						{
-							// update local values
-							LastKnownLatestVersion = latestVersion.Version;
-							Config.WriteSetting(WINAUTHREGKEY_LATESTVERSION, latestVersion.Version.ToString(3));
+							string result = FetchUpdateFeedString(updateUrl);
+							WinAuthVersionInfo latestVersion = ParseGetLatestVersion(result);
+							if (latestVersion != null)
+							{
+								LastKnownLatestVersion = latestVersion.Version;
+								Config?.WriteSetting(WINAUTHREGKEY_LATESTVERSION, latestVersion.Version.ToString(3));
+							}
+							callback(latestVersion, false, null);
 						}
-						return latestVersion;
-					}
-					else
-					{
-						// initiate async operation
-						web.DownloadStringCompleted += new DownloadStringCompletedEventHandler(GetLatestVersionDownloadCompleted);
-						web.DownloadStringAsync(new Uri(updateUrl), callback);
-						return null;
-					}
+						catch (Exception ex)
+						{
+							callback(null, false, ex);
+						}
+					});
+					return null;
 				}
 			}
-			catch (Exception )
+			catch (Exception ex)
 			{
-				// don't fail if we can't get latest version
+				callback?.Invoke(null, false, ex);
 				return null;
 			}
 		}
 
-		/// <summary>
-		/// Callback for async operation for latest version web request
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="args"></param>
-		private void GetLatestVersionDownloadCompleted(object sender, DownloadStringCompletedEventArgs args)
+		private string FetchUpdateFeedString(string updateUrl)
 		{
-			// no point if e have no callback
-			Action<WinAuthVersionInfo, bool, Exception> callback = args.UserState as Action<WinAuthVersionInfo, bool, Exception>;
-			if (callback == null)
+			using (var request = new HttpRequestMessage(HttpMethod.Get, updateUrl))
 			{
-				return;
-			}
-
-			// report cancelled or error
-			if (args.Cancelled == true || args.Error != null)
-			{
-				callback(null, args.Cancelled, args.Error);
-				return;
-			}
-
-			try
-			{
-				// extract the latest version
-				WinAuthVersionInfo latestVersion = ParseGetLatestVersion(args.Result);
-				if (latestVersion != null)
+				request.Headers.TryAddWithoutValidation("User-Agent", "WinAuth-" + this.CurrentVersion.ToString());
+				request.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
+				using (var response = _httpClient.Send(request))
 				{
-					// update local values
-					LastKnownLatestVersion = latestVersion.Version;
-					Config.WriteSetting(WINAUTHREGKEY_LATESTVERSION, latestVersion.Version.ToString(3));
+					response.EnsureSuccessStatusCode();
+					return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 				}
-				// perform callback
-				callback(latestVersion, false, null);
-			}
-			catch (Exception ex)
-			{
-				// report any other error
-				callback(null, false, ex);
 			}
 		}
 
 		/// <summary>
-		/// Parse the returned xml from the website request to extract version information
+		/// Parse the returned GitHub Releases JSON or legacy XML to extract version information.
 		/// </summary>
-		/// <param name="result">version xml information</param>
+		/// <param name="result">version JSON or XML information</param>
 		/// <returns>new WinAuthVersionInfo object</returns>
-		private WinAuthVersionInfo ParseGetLatestVersion(string result)
+		internal WinAuthVersionInfo ParseGetLatestVersion(string result)
 		{
+			if (string.IsNullOrWhiteSpace(result))
+			{
+				throw new InvalidOperationException("Invalid return data");
+			}
+
+			string trimmed = result.TrimStart();
+			if (trimmed.StartsWith("[", StringComparison.Ordinal) || trimmed.StartsWith("{", StringComparison.Ordinal))
+			{
+				return ParseGitHubReleasesJson(trimmed);
+			}
+
 			// load xml document and pull out nodes (XXE prevention - VULN-11)
 			XmlDocument xml = new XmlDocument();
 			xml.XmlResolver = null;
@@ -417,16 +479,10 @@ namespace WinAuth
 			var node = xml.SelectSingleNode("//version");
 
 			Version version = null;
-#if NETFX_4
-			Version.TryParse(node.InnerText, out version);
-#endif
-#if NETFX_3
-			try
+			if (node != null)
 			{
-				version = new Version(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion);
+				TryParseReleaseVersion(node.InnerText, out version);
 			}
-			catch (Exception) { }
-#endif
 			if (node != null && version != null)
 			{
 				WinAuthVersionInfo latestversion = new WinAuthVersionInfo(version);
@@ -437,12 +493,7 @@ namespace WinAuth
 				{
 					latestversion.Released = released;
 				}
-#if NETFX_4
 				node = xml.SelectSingleNode("//url");
-#endif
-#if NETFX_3
-				node = xml.SelectSingleNode("//url35");
-#endif
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
 				{
 					latestversion.Url = node.InnerText;
@@ -451,12 +502,11 @@ namespace WinAuth
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
 				{
 					latestversion.Changes = node.InnerText;
+				}
 				node = xml.SelectSingleNode("//sha256");
 				if (node != null && string.IsNullOrEmpty(node.InnerText) == false)
 				{
 					latestversion.Sha256 = node.InnerText.Trim();
-				}
-
 				}
 
 				return latestversion;
@@ -465,6 +515,74 @@ namespace WinAuth
 			{
 				throw new InvalidOperationException("Invalid return data");
 			}
+		}
+
+		private WinAuthVersionInfo ParseGitHubReleasesJson(string json)
+		{
+			using (JsonDocument doc = JsonDocument.Parse(json))
+			{
+				JsonElement root = doc.RootElement;
+				WinAuthVersionInfo best = null;
+
+				if (root.ValueKind == JsonValueKind.Array)
+				{
+					foreach (JsonElement item in root.EnumerateArray())
+					{
+						WinAuthVersionInfo candidate = ExtractGitHubReleaseElement(item);
+						if (candidate != null && (best == null || candidate.Version > best.Version))
+						{
+							best = candidate;
+						}
+					}
+				}
+				else if (root.ValueKind == JsonValueKind.Object)
+				{
+					best = ExtractGitHubReleaseElement(root);
+				}
+
+				return best;
+			}
+		}
+
+		private static WinAuthVersionInfo ExtractGitHubReleaseElement(JsonElement item)
+		{
+			if (item.ValueKind != JsonValueKind.Object)
+			{
+				return null;
+			}
+
+			if (item.TryGetProperty("draft", out JsonElement draftProp) && draftProp.ValueKind == JsonValueKind.True)
+			{
+				return null;
+			}
+
+			if (!item.TryGetProperty("tag_name", out JsonElement tagProp) || tagProp.ValueKind != JsonValueKind.String)
+			{
+				return null;
+			}
+
+			if (!TryParseReleaseVersion(tagProp.GetString(), out Version version))
+			{
+				return null;
+			}
+
+			var info = new WinAuthVersionInfo(version);
+
+			if (item.TryGetProperty("html_url", out JsonElement htmlUrlProp) && htmlUrlProp.ValueKind == JsonValueKind.String)
+			{
+				info.Url = htmlUrlProp.GetString();
+			}
+			if (item.TryGetProperty("published_at", out JsonElement publishedProp) && publishedProp.ValueKind == JsonValueKind.String
+				&& DateTime.TryParse(publishedProp.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTime published))
+			{
+				info.Released = published;
+			}
+			if (item.TryGetProperty("body", out JsonElement bodyProp) && bodyProp.ValueKind == JsonValueKind.String)
+			{
+				info.Changes = bodyProp.GetString();
+			}
+
+			return info;
 		}
 
 		/// <summary>
