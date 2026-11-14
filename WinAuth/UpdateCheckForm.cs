@@ -88,16 +88,16 @@ namespace WinAuth
 		private void UpdateCheckForm_Load(object sender, EventArgs e)
 		{
 			// set the initial status
-			versionInfoLabel.Text = GetHtmlText("<p>Latest Version: checking</p></body></html>");
+			versionInfoLabel.Text = GetHtmlText("<p>" + (strings.UpdateChecking ?? "Latest Version: checking") + "</p>");
 
 			// set checkboxes and dropdown
 			autoDropdown.Items.Clear();
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every Time", Interval = new TimeSpan(0, 0, 0, 0) });
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every Day", Interval = new TimeSpan(1, 0, 0, 0) });
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every 3 Days", Interval = new TimeSpan(3, 0, 0, 0) });
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every Week", Interval = new TimeSpan(7, 0, 0, 0) });
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every 2 Weeks", Interval = new TimeSpan(14, 0, 0, 0) });
-			autoDropdown.Items.Add(new UpdateIntervalItem { Name = "Every Month", Interval = new TimeSpan(30, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEveryTime ?? "Every Time", Interval = new TimeSpan(0, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEveryDay ?? "Every Day", Interval = new TimeSpan(1, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEvery3Days ?? "Every 3 Days", Interval = new TimeSpan(3, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEveryWeek ?? "Every Week", Interval = new TimeSpan(7, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEvery2Weeks ?? "Every 2 Weeks", Interval = new TimeSpan(14, 0, 0, 0) });
+			autoDropdown.Items.Add(new UpdateIntervalItem { Name = strings.UpdateIntervalEveryMonth ?? "Every Month", Interval = new TimeSpan(30, 0, 0, 0) });
 
 			if (Updater == null)
 			{
@@ -198,7 +198,8 @@ namespace WinAuth
 		private string GetHtmlText(string message, params string[] args)
 		{
 			message = string.Format(message, args);
-			return string.Format("<html><head><style>body {{width:" + (versionInfoLabel.Width - versionInfoLabel.Margin.Horizontal - versionInfoLabel.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth) + "px;}} html,body,div,p,ul {{margin:0;padding:0;}} p {{padding:0; margin:0 0 8px 0;}} </style></head><body>{0}</body></html>", message);
+			string fontName = UiFontHelper.GetUiFontFamilyName();
+			return string.Format("<html><head><style>body {{font-family:'" + fontName + "',sans-serif; width:" + (versionInfoLabel.Width - versionInfoLabel.Margin.Horizontal - versionInfoLabel.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth) + "px;}} html,body,div,p,ul {{margin:0;padding:0;}} p {{padding:0; margin:0 0 8px 0;}} </style></head><body>{0}</body></html>", message);
 		}
 
 		/// <summary>
@@ -217,16 +218,15 @@ namespace WinAuth
 			string text = string.Empty;
 			if (cancelled == true)
 			{
-				text = "Update was cancelled";
+				text = strings.UpdateCancelled ?? "Update was cancelled";
 			}
 			else if (error != null)
 			{
-				text = GetHtmlText("Error: " + error.Message);
-				//text = "Error: " + error.Message;
+				text = GetHtmlText(strings.UpdateError ?? "Error: {0}", error.Message);
 			}
 			else if (latestInfo == null)
 			{
-				text = GetHtmlText("<p>You are on the latest version.</p>");
+				text = GetHtmlText("<p>" + (strings.UpdateOnLatest ?? "You are on the latest version.") + "</p>");
 			}
 			else
 			{
@@ -234,11 +234,11 @@ namespace WinAuth
 				Version current = new Version(Updater.CurrentVersion.Major, Updater.CurrentVersion.Minor, Updater.CurrentVersion.Build);
 				if (current >= latest)
 				{
-					text = GetHtmlText("<p>Latest Version: {0}</p><p>You are on the latest version.</p>", latest.ToString(3));
+					text = GetHtmlText("<p>" + (strings.UpdateLatestVersion ?? "Latest Version: {0}") + "</p><p>" + (strings.UpdateOnLatest ?? "You are on the latest version.") + "</p>", latest.ToString(3));
 				}
 				else
 				{
-					string info = string.Format("<p>Latest Version: {0} (yours {1})</p><p><a href=\"{2}\">Download version {0}</a></p></body></html>", latest.ToString(3), current.ToString(3), latestInfo.Url);
+					string info = string.Format("<p>" + (strings.UpdateLatestAvailable ?? "Latest Version: {0} (yours {1})") + "</p><p><a href=\"{2}\">" + (strings.UpdateDownloadVersion ?? "Download version {0}") + "</a></p>", latest.ToString(3), current.ToString(3), latestInfo.Url);
 					text = GetHtmlText("{0}", info);
 				}
 			}

@@ -66,6 +66,9 @@ namespace WinAuth
 			}
 		}
 
+		private readonly Dictionary<object, string> _defaultTexts = new Dictionary<object, string>();
+		private bool _textsCaptured;
+
 		/// <summary>
 		/// Create the new form
 		/// </summary>
@@ -75,14 +78,36 @@ namespace WinAuth
 		}
 
 		/// <summary>
-		/// Search the resources for any _FORMNAME_CONTROLNAME_ strings and replace the text
+		/// Return true if a control's Text is dynamically managed and should not be overwritten by localization.
 		/// </summary>
-		/// <param name="e"></param>
-		protected override void OnLoad(EventArgs e)
+		protected virtual bool IsLocalizationExcluded(Control control)
 		{
-			// go through all controls and set any text from resources (including this form)
-			//var controls = GetControls(this, new Type[] { typeof(MetroFramework.Controls.MetroLabel), typeof(MetroFramework.Controls.MetroCheckBox) });
+			return control != null && string.Equals(control.Name, "versionLabel", StringComparison.Ordinal);
+		}
+
+		/// <summary>
+		/// Apply current language strings to the form and all child controls.
+		/// </summary>
+		public virtual void ApplyLanguage()
+		{
 			var controls = GetControls(this);
+
+			if (!_textsCaptured)
+			{
+				_defaultTexts[this] = this.Text;
+				foreach (Control c in controls)
+				{
+					if (c is MetroFramework.Controls.MetroTextBox mtb)
+					{
+						_defaultTexts[c] = mtb.PromptText;
+					}
+					else
+					{
+						_defaultTexts[c] = c.Text;
+					}
+				}
+				_textsCaptured = true;
+			}
 
 			string formname = "_" + this.Name + "_";
 			string text = WinAuthMain.StringResources.GetString(formname, System.Threading.Thread.CurrentThread.CurrentCulture);
@@ -90,24 +115,57 @@ namespace WinAuth
 			{
 				this.Text = text;
 			}
+			else if (_defaultTexts.TryGetValue(this, out string defaultFormText))
+			{
+				this.Text = defaultFormText;
+			}
+
 			foreach (Control c in controls)
 			{
+				if (string.IsNullOrEmpty(c.Name) || IsLocalizationExcluded(c))
+				{
+					continue;
+				}
+
 				string controlname = formname + c.Name + "_";
-				text = WinAuthMain.StringResources.GetString(controlname, System.Threading.Thread.CurrentThread.CurrentCulture);
+				text = WinAuthMain.StringResources.GetString(controlname, System.Threading.Thread.CurrentThread.CurrentCulture)
+					?? WinAuthMain.StringResources.GetString(formname + c.Name, System.Threading.Thread.CurrentThread.CurrentCulture);
 				if (text != null)
 				{
-					if (c is MetroFramework.Controls.MetroTextBox)
+					if (c is MetroFramework.Controls.MetroTextBox mtb)
 					{
-						((MetroFramework.Controls.MetroTextBox)c).PromptText = text;
+						mtb.PromptText = text;
 					}
 					else
 					{
 						c.Text = text;
 					}
 				}
+				else if (_defaultTexts.TryGetValue(c, out string defaultCtrlText))
+				{
+					if (c is MetroFramework.Controls.MetroTextBox mtb)
+					{
+						mtb.PromptText = defaultCtrlText;
+					}
+					else
+					{
+						c.Text = defaultCtrlText;
+					}
+				}
 			}
+		}
+
+		/// <summary>
+		/// Search the resources for any _FORMNAME_CONTROLNAME_ strings and replace the text
+		/// </summary>
+		/// <param name="e"></param>
+		protected override void OnLoad(EventArgs e)
+		{
+			ApplyLanguage();
 
 			base.OnLoad(e);
+
+			UiFontHelper.ApplyFormFonts(this);
 		}
 
 		/// <summary>
@@ -130,7 +188,9 @@ namespace WinAuth
 				{
 					controls.Add(c);
 				}
-				if (c.Controls != null && c.Controls.Count != 0)
+				if (!(c is MetroFramework.Controls.MetroTextBox)
+					&& !(c is MetroFramework.Controls.MetroLabel)
+					&& c.Controls != null && c.Controls.Count != 0)
 				{
 					GetControls(c, controlTypes, controls);
 				}

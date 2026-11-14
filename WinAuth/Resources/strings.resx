@@ -225,6 +225,60 @@ Would you like to import your previous authenticator now?</value>
   <data name="MenuExit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="MenuLanguage" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="LanguageJapanese" xml:space="preserve">
+    <value>Japanese</value>
+  </data>
+  <data name="LanguageEnglish" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="AddMenuAuthenticator" xml:space="preserve">
+    <value>Authenticator</value>
+  </data>
+  <data name="NewVersionAvailable" xml:space="preserve">
+    <value>New version {0} available</value>
+  </data>
+  <data name="UpdateChecking" xml:space="preserve">
+    <value>Latest Version: checking</value>
+  </data>
+  <data name="UpdateCancelled" xml:space="preserve">
+    <value>Update was cancelled</value>
+  </data>
+  <data name="UpdateError" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="UpdateOnLatest" xml:space="preserve">
+    <value>You are on the latest version.</value>
+  </data>
+  <data name="UpdateLatestVersion" xml:space="preserve">
+    <value>Latest Version: {0}</value>
+  </data>
+  <data name="UpdateLatestAvailable" xml:space="preserve">
+    <value>Latest Version: {0} (yours {1})</value>
+  </data>
+  <data name="UpdateDownloadVersion" xml:space="preserve">
+    <value>Download version {0}</value>
+  </data>
+  <data name="UpdateIntervalEveryTime" xml:space="preserve">
+    <value>Every Time</value>
+  </data>
+  <data name="UpdateIntervalEveryDay" xml:space="preserve">
+    <value>Every Day</value>
+  </data>
+  <data name="UpdateIntervalEvery3Days" xml:space="preserve">
+    <value>Every 3 Days</value>
+  </data>
+  <data name="UpdateIntervalEveryWeek" xml:space="preserve">
+    <value>Every Week</value>
+  </data>
+  <data name="UpdateIntervalEvery2Weeks" xml:space="preserve">
+    <value>Every 2 Weeks</value>
+  </data>
+  <data name="UpdateIntervalEveryMonth" xml:space="preserve">
+    <value>Every Month</value>
+  </data>
   <data name="MenuExport" xml:space="preserve">
     <value>Export...</value>
   </data>
@@ -298,7 +352,7 @@ Do you want to overwrite it?</value>
   </data>
   <data name="_AboutForm_aboutLabel_" xml:space="preserve">
     <value>WinAuth {0}
-Copyright {1}. Colin Mackie. All rights reserved.</value>
+Copyright © 2013-2026 Colin Mackie / Modified 2026 CTD Networks Co., Ltd.</value>
   </data>
   <data name="_AboutForm_closeButton_" xml:space="preserve">
     <value>Close</value>

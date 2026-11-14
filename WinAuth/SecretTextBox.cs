@@ -60,6 +60,16 @@ namespace WinAuth
 		{
 		}
 
+		protected override void OnFontChanged(EventArgs e)
+		{
+			base.OnFontChanged(e);
+			if (this.Font != null)
+			{
+				m_fontFamily = this.Font.FontFamily.Name;
+				m_fontSize = this.Font.Size;
+			}
+		}
+
 		/// <summary>
 		/// Get/set the flag to draw as a bitmap
 		/// </summary>

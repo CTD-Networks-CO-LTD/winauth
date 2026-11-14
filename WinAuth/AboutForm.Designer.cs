@@ -43,9 +43,9 @@
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.aboutLabel.Location = new System.Drawing.Point(23, 60);
 			this.aboutLabel.Name = "aboutLabel";
-			this.aboutLabel.Size = new System.Drawing.Size(366, 45);
+			this.aboutLabel.Size = new System.Drawing.Size(366, 64);
 			this.aboutLabel.TabIndex = 2;
-			this.aboutLabel.Text = "WinAuth {0}\r\nCopyright {1}. Colin Mackie. All rights reserved.\r\n";
+			this.aboutLabel.Text = "WinAuth {0}\r\nCopyright © 2013-2026 Colin Mackie / Modified 2026 CTD Networks Co., Ltd.\r\n";
 			// 
 			// licenseLabel
 			// 

@@ -39,7 +39,7 @@ namespace WinAuth.Resources {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("WinAuth.Resources.strings", typeof(strings).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::WinAuth.CustomResourceManager("WinAuth.Resources.strings", typeof(strings).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -1001,6 +1001,123 @@ namespace WinAuth.Resources {
         internal static string MenuExit {
             get {
                 return ResourceManager.GetString("MenuExit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Language.
+        /// </summary>
+        internal static string MenuLanguage {
+            get {
+                return ResourceManager.GetString("MenuLanguage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Japanese.
+        /// </summary>
+        internal static string LanguageJapanese {
+            get {
+                return ResourceManager.GetString("LanguageJapanese", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to English.
+        /// </summary>
+        internal static string LanguageEnglish {
+            get {
+                return ResourceManager.GetString("LanguageEnglish", resourceCulture);
+            }
+        }
+
+        internal static string AddMenuAuthenticator {
+            get {
+                return ResourceManager.GetString("AddMenuAuthenticator", resourceCulture);
+            }
+        }
+
+        internal static string NewVersionAvailable {
+            get {
+                return ResourceManager.GetString("NewVersionAvailable", resourceCulture);
+            }
+        }
+
+        internal static string UpdateChecking {
+            get {
+                return ResourceManager.GetString("UpdateChecking", resourceCulture);
+            }
+        }
+
+        internal static string UpdateCancelled {
+            get {
+                return ResourceManager.GetString("UpdateCancelled", resourceCulture);
+            }
+        }
+
+        internal static string UpdateError {
+            get {
+                return ResourceManager.GetString("UpdateError", resourceCulture);
+            }
+        }
+
+        internal static string UpdateOnLatest {
+            get {
+                return ResourceManager.GetString("UpdateOnLatest", resourceCulture);
+            }
+        }
+
+        internal static string UpdateLatestVersion {
+            get {
+                return ResourceManager.GetString("UpdateLatestVersion", resourceCulture);
+            }
+        }
+
+        internal static string UpdateLatestAvailable {
+            get {
+                return ResourceManager.GetString("UpdateLatestAvailable", resourceCulture);
+            }
+        }
+
+        internal static string UpdateDownloadVersion {
+            get {
+                return ResourceManager.GetString("UpdateDownloadVersion", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEveryTime {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEveryTime", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEveryDay {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEveryDay", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEvery3Days {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEvery3Days", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEveryWeek {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEveryWeek", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEvery2Weeks {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEvery2Weeks", resourceCulture);
+            }
+        }
+
+        internal static string UpdateIntervalEveryMonth {
+            get {
+                return ResourceManager.GetString("UpdateIntervalEveryMonth", resourceCulture);
             }
         }
         

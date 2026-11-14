@@ -152,7 +152,7 @@ namespace WinAuth
 		/// <summary>
 		/// Flag to size form based on numebr authenticators
 		/// </summary>
-		private bool _autoSize;
+		private bool _autoSize = true;
 
 		/// <summary>
 		/// Remember position
@@ -183,6 +183,11 @@ namespace WinAuth
 		/// User's own PGPKey for backups
 		/// </summary>
 		private string _pgpKey;
+
+		/// <summary>
+		/// UI Language preference ("Japanese" / "English")
+		/// </summary>
+		private string _language;
 
 		/// <summary>
 		/// Class used to serialize the settings inside the Xml config file
@@ -413,6 +418,29 @@ namespace WinAuth
 			get
 			{
 				return _pgpKey;
+			}
+		}
+
+		/// <summary>
+		/// Get/set UI language ("Japanese" / "English")
+		/// </summary>
+		public string Language
+		{
+			get
+			{
+				return _language;
+			}
+			set
+			{
+				string normalized = string.IsNullOrWhiteSpace(value) ? null : LanguageManager.NormalizeLanguage(value);
+				if (!string.Equals(_language, normalized, StringComparison.Ordinal))
+				{
+					_language = normalized;
+					if (OnConfigChanged != null)
+					{
+						OnConfigChanged(this, new ConfigChangedEventArgs("Language"));
+					}
+				}
 			}
 		}
 
@@ -977,6 +1005,10 @@ namespace WinAuth
 							_pgpKey = reader.ReadElementContentAsString();
 							break;
 
+						case "language":
+							_language = reader.ReadElementContentAsString();
+							break;
+
 						case "settings":
 							XmlSerializer serializer = new XmlSerializer(typeof(setting[]), new XmlRootAttribute() { ElementName = "settings" });
 							_settings = ((setting[])serializer.Deserialize(reader)).ToDictionary(e => e.Key, e => e.Value);
@@ -1140,6 +1172,13 @@ namespace WinAuth
 			{
 				writer.WriteStartElement("shadowtype");
 				writer.WriteValue(this.ShadowType);
+				writer.WriteEndElement();
+			}
+			//
+			if (string.IsNullOrEmpty(this.Language) == false)
+			{
+				writer.WriteStartElement("language");
+				writer.WriteValue(this.Language);
 				writer.WriteEndElement();
 			}
 			//

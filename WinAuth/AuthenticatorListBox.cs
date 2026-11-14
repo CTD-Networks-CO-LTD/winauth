@@ -170,17 +170,17 @@ namespace WinAuth
 	public class AuthenticatorListBox : ListBox
   {
 		private const int MARGIN_LEFT = 4;
-		private const int MARGIN_TOP = 8;
+		private const int MARGIN_TOP = 5;
 		private const int MARGIN_RIGHT = 8;
 		private const int ICON_WIDTH = 48;
 		private const int ICON_HEIGHT = 48;
 		private const int ICON_MARGIN_RIGHT = 12;
 
-		private const int LABEL_MARGIN_BOTTOM = 4;
+		private const int LABEL_MARGIN_BOTTOM = 0;
 
 		private const int LABEL_WIDTH = 250;
 
-		private const int FONT_SIZE = 12;
+		private const float FONT_SIZE = 10.5F;
 
 		private const int PIE_WIDTH = 46;
 		private const int PIE_HEIGHT = 46;
@@ -279,8 +279,17 @@ namespace WinAuth
 			this.ContextMenuStrip.Opening += ContextMenuStrip_Opening;
 
 			// preload the content menu
-			loadContextMenuStrip();
+			RefreshLanguage();
     }
+
+		/// <summary>
+		/// Reload context menu items and fonts after language change.
+		/// </summary>
+		public void RefreshLanguage()
+		{
+			loadContextMenuStrip();
+			UiFontHelper.ApplyContextMenuFont(this.ContextMenuStrip);
+		}
 
 		/// <summary>
 		/// Capture the mouse wheel events and scroll to appropriate position
@@ -753,7 +762,7 @@ namespace WinAuth
 					_renameTextbox.Name = "renameTextBox";
 					_renameTextbox.AllowDrop = true;
 					_renameTextbox.CausesValidation = false;
-					_renameTextbox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+					_renameTextbox.Font = UiFontHelper.CreateUiFont(10F, System.Drawing.FontStyle.Regular);
 					_renameTextbox.Location = new System.Drawing.Point(0, 0);
 					_renameTextbox.Multiline = false;
 					_renameTextbox.Name = "secretCodeField";
@@ -1814,7 +1823,8 @@ namespace WinAuth
 			{
 				using (Graphics g = this.CreateGraphics())
 				{
-					using (var font = new Font(this.Font.FontFamily, FONT_SIZE, FontStyle.Regular))
+					g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+					using (var font = UiFontHelper.CreateUiFont(FONT_SIZE, FontStyle.Regular))
 					{
 						foreach (AuthenticatorListitem item in items.Where(i => i.AutoWidth == 0))
 						{
@@ -1885,6 +1895,7 @@ namespace WinAuth
 				bool showCode = (auth.AutoRefresh == true || item.DisplayUntil > DateTime.Now);
 
 				e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+				e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
 				Rectangle rect = new Rectangle(e.Bounds.X + MARGIN_LEFT, e.Bounds.Y + MARGIN_TOP, ICON_WIDTH, ICON_HEIGHT);
 				if (cliprect.IntersectsWith(rect) == true)
@@ -1898,7 +1909,7 @@ namespace WinAuth
 					}
 				}
 
-				using (var font = new Font(e.Font.FontFamily, FONT_SIZE, FontStyle.Regular))
+				using (var font = UiFontHelper.CreateUiFont(FONT_SIZE, FontStyle.Regular))
 				{
 					string label = auth.Name;
 					SizeF labelsize = e.Graphics.MeasureString(label.ToString(), font);

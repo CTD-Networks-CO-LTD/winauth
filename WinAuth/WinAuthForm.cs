@@ -56,10 +56,45 @@ namespace WinAuth
 		private const string WINAUTHREGKEY_BETAWARNING = @"Software\WinAuth3\BetaWarning";
 #endif
 		
+		private bool _skipStartupConfigLoad;
+
 		public WinAuthForm()
     {
       InitializeComponent();
+			this.authenticatorList.Font = UiFontHelper.CreateOtpCodeFont(13F, FontStyle.Bold);
+			this.versionLabel.Text = WinAuthHelper.GetVersionDisplayString();
+			UpdateVersionLabelLayout();
     }
+
+		internal WinAuthForm(WinAuthConfig testConfig)
+			: this()
+		{
+			_skipStartupConfigLoad = true;
+			this.Config = testConfig;
+			if (this.Config != null)
+			{
+				this.Config.OnConfigChanged += new ConfigChangedHandler(OnConfigChanged);
+			}
+		}
+
+		internal ContextMenuStrip OptionsMenuControl => this.optionsMenu;
+		internal ContextMenuStrip AddAuthenticatorMenuControl => this.addAuthenticatorMenu;
+		internal AuthenticatorListBox AuthenticatorListControl => this.authenticatorList;
+		internal MetroFramework.Controls.MetroLabel VersionLabelControl => this.versionLabel;
+		internal void TriggerOpeningOptionsMenu() => OpeningOptionsMenu(this.optionsMenu, new CancelEventArgs());
+
+		public override void ApplyLanguage()
+		{
+			base.ApplyLanguage();
+			if (this.yubiPanel != null && this.yubiPanel.Visible)
+			{
+				this.yubiLabel.Text = strings.YubikeyInsert;
+			}
+			if (this.versionLabel != null)
+			{
+				this.versionLabel.Text = WinAuthHelper.GetVersionDisplayString();
+			}
+		}
 
 #region Properties
 
@@ -161,6 +196,21 @@ namespace WinAuth
 		/// <param name="e"></param>
     private void WinAuthForm_Load(object sender, EventArgs e)
     {
+			if (_skipStartupConfigLoad)
+			{
+				InitializeOnce();
+				if (this.Config != null)
+				{
+					if (!string.IsNullOrWhiteSpace(this.Config.Language))
+					{
+						LanguageManager.SetLanguage(this.Config.Language, false);
+					}
+					ApplyLanguage();
+					InitializeForm();
+				}
+				return;
+			}
+
       // get any command arguments
 			string password = null;
 			string proxy = null;
@@ -343,6 +393,12 @@ namespace WinAuth
 
 				this.Config = config;
 				this.Config.OnConfigChanged += new ConfigChangedHandler(OnConfigChanged);
+
+				if (!string.IsNullOrWhiteSpace(config.Language))
+				{
+					LanguageManager.SetLanguage(config.Language, false);
+				}
+				ApplyLanguage();
 
 				if (config.Upgraded == true)
 				{
@@ -702,7 +758,7 @@ namespace WinAuth
 					Version latest = Updater.LastKnownLatestVersion;
 					if (latest != null && latest > Updater.CurrentVersion)
 					{
-						newVersionLink.Text = "New version " + latest + " available";
+						newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", latest);
 						newVersionLink.Visible = true;
 					}
 				}
@@ -723,6 +779,11 @@ namespace WinAuth
 			LoadAddAuthenticatorTypes();
 			loadOptionsMenu(this.optionsMenu);
 			loadNotifyMenu(this.notifyMenu);
+			this.authenticatorList.RefreshLanguage();
+			UiFontHelper.ApplyContextMenuFont(this.addAuthenticatorMenu);
+			UiFontHelper.ApplyContextMenuFont(this.optionsMenu);
+			UiFontHelper.ApplyContextMenuFont(this.notifyMenu);
+			UpdateVersionLabelLayout();
 			loadingPanel.Visible = false;
 			passwordPanel.Visible = false;
 			yubiPanel.Visible = false;
@@ -922,7 +983,9 @@ namespace WinAuth
 				}
 
 				subitem = new ToolStripMenuItem();
-				subitem.Text = auth.Name;
+				subitem.Text = (auth.AuthenticatorType == RegisteredAuthenticator.AuthenticatorTypes.RFC6238_TIME && !string.IsNullOrEmpty(strings.AddMenuAuthenticator))
+					? strings.AddMenuAuthenticator
+					: auth.Name;
 				subitem.Name = "addAuthenticatorMenuItem_" + index++;
 				subitem.Tag = auth;
 				if (string.IsNullOrEmpty(auth.Icon) == false)
@@ -1566,7 +1629,7 @@ namespace WinAuth
 			{
 			if (Updater != null && Updater.IsAutoCheck == true && latest != null && latest > Updater.CurrentVersion)
 				{
-				this.Invoke((MethodInvoker)delegate { newVersionLink.Text = "New version " + latest.ToString(3) + " available"; newVersionLink.Visible = true; });
+				this.Invoke((MethodInvoker)delegate { newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", latest.ToString(3)); newVersionLink.Visible = true; });
 			}
 			else
 			{
@@ -2058,7 +2121,33 @@ namespace WinAuth
 				authenticatorList.Height = this.Height - _listoffset.Height;
 				authenticatorList.Width = this.Width - _listoffset.Width;
 			}
+			UpdateVersionLabelLayout();
 			this.ResumeLayout(true);
+		}
+
+		private void UpdateVersionLabelLayout()
+		{
+			if (this.versionLabel == null)
+			{
+				return;
+			}
+
+			int rightMargin = 8;
+			int minLeftX = 128;
+			int maxAvailableWidth = Math.Max(60, this.ClientSize.Width - rightMargin - minLeftX);
+			int labelWidth = Math.Min(140, maxAvailableWidth);
+			this.versionLabel.SetBounds(this.ClientSize.Width - rightMargin - labelWidth, 28, labelWidth, 18);
+			this.versionLabel.BringToFront();
+		}
+
+		private void versionLabel_MouseDown(object sender, MouseEventArgs e)
+		{
+			EndRenaming();
+			if (e.Button == MouseButtons.Left && this.IsHandleCreated)
+			{
+				WinAPI.ReleaseCapture();
+				WinAPI.SendMessage(this.Handle, WinAPI.WM_NCLBUTTONDOWN, WinAPI.HTCAPTION, IntPtr.Zero);
+			}
 		}
 
 		/// <summary>
@@ -2208,6 +2297,7 @@ namespace WinAuth
 
 			menuitem = new ToolStripMenuItem(strings.MenuAutoSize);
 			menuitem.Name = "autoSizeOptionsMenuItem";
+			menuitem.Checked = (this.Config == null || this.Config.AutoSize);
 			menuitem.Click += autoSizeOptionsMenuItem_Click;
 			menu.Items.Add(menuitem);
 
@@ -2232,6 +2322,25 @@ namespace WinAuth
 			menuitem = new ToolStripMenuItem(strings.MenuAbout + "...");
 			menuitem.Name = "aboutOptionsMenuItem";
 			menuitem.Click += aboutOptionMenuItem_Click;
+			menu.Items.Add(menuitem);
+
+			menu.Items.Add(new ToolStripSeparator() { Name = "languageOptionsSeparatorItem" });
+
+			menuitem = new ToolStripMenuItem(strings.MenuLanguage);
+			menuitem.Name = "languageOptionsMenuItem";
+
+			var langJapaneseItem = new ToolStripMenuItem(strings.LanguageJapanese ?? LanguageManager.Japanese);
+			langJapaneseItem.Name = "languageJapaneseOptionsMenuItem";
+			langJapaneseItem.Tag = LanguageManager.Japanese;
+			langJapaneseItem.Click += languageOptionsMenuItem_Click;
+			menuitem.DropDownItems.Add(langJapaneseItem);
+
+			var langEnglishItem = new ToolStripMenuItem(strings.LanguageEnglish ?? LanguageManager.English);
+			langEnglishItem.Name = "languageEnglishOptionsMenuItem";
+			langEnglishItem.Tag = LanguageManager.English;
+			langEnglishItem.Click += languageOptionsMenuItem_Click;
+			menuitem.DropDownItems.Add(langEnglishItem);
+
 			menu.Items.Add(menuitem);
 
 			menu.Items.Add(new ToolStripSeparator());
@@ -2400,10 +2509,18 @@ namespace WinAuth
 				menuitem.Checked = this.Config.AutoSize;
 			}
 
-			menuitem = menu.Items.Cast<ToolStripItem>().Where(t => t.Name == "autoSizeOptionsMenuItem").FirstOrDefault() as ToolStripMenuItem;
+			menuitem = menu.Items.Cast<ToolStripItem>().Where(t => t.Name == "languageOptionsMenuItem").FirstOrDefault() as ToolStripMenuItem;
 			if (menuitem != null)
 			{
-				menuitem.Checked = this.Config.AutoSize;
+				string activeLang = LanguageManager.CurrentLanguage;
+				foreach (ToolStripItem sub in menuitem.DropDownItems)
+				{
+					if (sub is ToolStripMenuItem subMenuItem)
+					{
+						string langTag = subMenuItem.Tag as string;
+						subMenuItem.Checked = string.Equals(langTag, activeLang, StringComparison.OrdinalIgnoreCase);
+					}
+				}
 			}
 		}
 
@@ -2708,6 +2825,49 @@ namespace WinAuth
 		}
 
 		/// <summary>
+		/// Switch UI language manually from the Options menu and persist user selection.
+		/// </summary>
+		private void languageOptionsMenuItem_Click(object sender, EventArgs e)
+		{
+			if (sender is ToolStripMenuItem menuitem && menuitem.Tag is string selectedLang)
+			{
+				SetUiLanguage(selectedLang);
+			}
+		}
+
+		internal void SetUiLanguage(string selectedLang, bool persistToRegistry = true)
+		{
+			string normalized = LanguageManager.SetLanguage(selectedLang, true);
+
+			if (this.Config != null)
+			{
+				if (this.Config.IsReadOnly == false)
+				{
+					this.Config.Language = normalized;
+					if (this.Config.IsPortable == false && persistToRegistry)
+					{
+						WinAuthHelper.WriteRegistryValue(LanguageManager.RegistryLanguageKey, normalized);
+					}
+					SaveConfig(true);
+				}
+			}
+			else if (persistToRegistry)
+			{
+				WinAuthHelper.WriteRegistryValue(LanguageManager.RegistryLanguageKey, normalized);
+			}
+
+			ApplyLanguage();
+			LoadAddAuthenticatorTypes();
+			loadOptionsMenu(this.optionsMenu);
+			loadNotifyMenu(this.notifyMenu);
+			this.authenticatorList.RefreshLanguage();
+			UiFontHelper.ApplyContextMenuFont(this.addAuthenticatorMenu);
+			UiFontHelper.ApplyContextMenuFont(this.optionsMenu);
+			UiFontHelper.ApplyContextMenuFont(this.notifyMenu);
+			this.Invalidate(true);
+		}
+
+		/// <summary>
 		/// Click the Exit menu item
 		/// </summary>
 		/// <param name="sender"></param>
@@ -2763,8 +2923,11 @@ namespace WinAuth
 				HookHotkeys();
 			}
 
-			// batch up saves so they can be done out of line
-			SaveConfig();
+			if (this.Config != null && this.Config.IsReadOnly == false)
+			{
+				// batch up saves so they can be done out of line
+				SaveConfig();
+			}
     }
 #endregion
 

@@ -215,6 +215,8 @@ namespace WinAuth
 		public const int WM_DEVICECHANGE = 0x0219;
 		public const int WM_HOTKEY = 0x0312;
 		public const int WM_USER = 0x0400;
+		public const int WM_NCLBUTTONDOWN = 0x00A1;
+		public const int HTCAPTION = 0x0002;
 
 		/// <summary>
 		/// USB Detection
@@ -365,6 +367,8 @@ namespace WinAuth
 		internal static extern bool PostMessage(IntPtr hWnd, uint msg, int wParam, IntPtr lParam);
 		[DllImport("user32.dll", EntryPoint = "SendMessageA", SetLastError = true)]
 		internal static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, int wParam, IntPtr lParam);
+		[DllImport("user32.dll")]
+		internal static extern bool ReleaseCapture();
 		[DllImport("user32.dll")]
 		internal static extern byte VkKeyScan(char ch);
 		[DllImport("user32.dll")]
