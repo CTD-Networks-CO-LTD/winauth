@@ -73,7 +73,12 @@
 1. 事前に [.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) がインストールされていることを確認します。
 2. ダウンロードした ZIP ファイルを展開し、`WinAuth.exe` を任意のフォルダに配置して起動します。
    - インストール作業は不要です。
-   - 未導入の状態で起動した場合は表示される案内に従って公式インストーラーを導入してください。
+   - `.NET 10 Desktop Runtime` 未導入の状態で起動した場合は表示される案内に従って公式インストーラーを導入してください。
+
+    |<img width="50%" alt="NET10のDesktop Rantimeインストールが促されます" src="https://github.com/user-attachments/assets/e4658d17-cb8a-48e4-9143-42b8c535defb" />|<img width="30%" alt="NET10DesktopRuntimeインストール(1)" src="https://github.com/user-attachments/assets/542609a3-4ded-4136-bfa4-30e693ff5f09" />|
+    |:--:|:--:|
+    |<img width="30%" alt="NET10DesktopRuntimeインストール(2)" src="https://github.com/user-attachments/assets/d785253b-b868-4add-aa48-5cfc8a7f34d6" />|<img width="30%" alt="NET10DesktopRuntimeインストール(3)" src="https://github.com/user-attachments/assets/1c5cb1c2-7da2-444d-a433-94098148679e" />|
+
 4. **［Add］** ボタンをクリックし、認証器の追加またはインポートを行います。
 5. 登録した認証器を右クリックすると、コードのコピーや詳細設定などのコンテキストメニューが表示されます。
 6. 自動更新を無効にしている場合は、右側のアイコンをクリックすると現在のコードが表示されます。
