@@ -1,4 +1,4 @@
-# Windows Authenticator (WinAuth)
+# Windows Authenticator (WinAuth_ja-JP)
 
 *WinAuth は、RFC 6238（時刻ベース TOTP）および RFC 4226（カウンターベース HOTP）に準拠した、Windows 向けのポータブルなオープンソース二要素認証（2FA）クライアントです。Google Authenticator 互換の各種 Web サービスや暗号資産取引所のほか、Steam、Battle.net、Guild Wars 2、Glyph（Rift / ArcheAge）など多様なサービスに対応しています。*
 
