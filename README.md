@@ -12,7 +12,7 @@
     </tr>
     <tr>
       <td align="center">
-        <img width="50%" alt="1_日本語対応(4 1 3)"
+        <img width="60%" alt="1_日本語対応(4 1 3)"
              src="https://github.com/user-attachments/assets/4331d5e3-7fad-4402-9ec4-d422248f6ede" />
       </td>
       <td rowspan="2" align="center" valign="middle">
@@ -22,7 +22,7 @@
     </tr>
     <tr>
       <td align="center">
-        <img width="50%" alt="2_日本語対応(4 1 3)" src="https://github.com/user-attachments/assets/e368af18-aace-4875-9f37-2cd895702731" />
+        <img width="60%" alt="2_日本語対応(4 1 3)" src="https://github.com/user-attachments/assets/e368af18-aace-4875-9f37-2cd895702731" />
       </td>
     </tr>
   </tbody>
