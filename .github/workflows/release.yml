@@ -47,7 +47,7 @@ jobs:
           dotnet restore WinAuth.sln
           dotnet test WinAuth.sln -c Release --no-restore
 
-      - name: Publish WinAuth.exe and Create WinAuth-{tag}.zip
+      - name: Publish WinAuth.exe and Create Release Archives
         env:
           RAW_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
         shell: pwsh
@@ -57,9 +57,12 @@ jobs:
           }
           $tag = $env:RAW_TAG
           $verProps = @()
+          $xmlVersion = "4.0"
           if ($tag -match '^[vV]?(\d+\.\d+\.\d+(?:\.\d+)?)') {
             $ver = $Matches[1]
             $ver4 = if ($ver.Split('.').Length -eq 3) { "$ver.0" } else { $ver }
+            $verParts = $ver.Split('.')
+            $xmlVersion = "$($verParts[0]).$($verParts[1])"
             $verProps += "-p:Version=$ver"
             $verProps += "-p:AssemblyVersion=$ver4"
             $verProps += "-p:FileVersion=$ver4"
@@ -84,19 +87,53 @@ jobs:
           $zipName = "WinAuth-$tag.zip"
           Compress-Archive -LiteralPath "./publish/WinAuth.exe" -DestinationPath "./$zipName" -Force
 
-          $hash = (Get-FileHash -LiteralPath "./$zipName" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $zipName" | Set-Content -LiteralPath "./$zipName.sha256" -Encoding ASCII
+          $portableDir = "./portable"
+          if (Test-Path $portableDir) {
+            Remove-Item -LiteralPath $portableDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $portableDir -Force | Out-Null
+          $xmlContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<WinAuth version="$xmlVersion">
+</WinAuth>
+"@
+          [System.IO.File]::WriteAllText((Join-Path (Resolve-Path $portableDir).Path "winauth.xml"), $xmlContent + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+
+          $portableZipName = "WinAuth-$tag-portable.zip"
+          Compress-Archive -LiteralPath "./publish/WinAuth.exe", "$portableDir/winauth.xml" -DestinationPath "./$portableZipName" -Force
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $stdZip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path "./$zipName").Path)
+          try {
+            $stdEntries = @($stdZip.Entries | ForEach-Object { $_.FullName })
+            if ($stdEntries.Count -ne 1 -or $stdEntries[0] -ne "WinAuth.exe") {
+              throw "Unexpected entries in $zipName : $($stdEntries -join ', ')"
+            }
+          } finally {
+            $stdZip.Dispose()
+          }
+
+          $portZip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path "./$portableZipName").Path)
+          try {
+            $portEntries = @($portZip.Entries | ForEach-Object { $_.FullName } | Sort-Object)
+            if ($portEntries.Count -ne 2 -or $portEntries[0] -ne "WinAuth.exe" -or $portEntries[1] -ne "winauth.xml") {
+              throw "Unexpected entries in $portableZipName : $($portEntries -join ', ')"
+            }
+          } finally {
+            $portZip.Dispose()
+          }
 
           Add-Content -Path $env:GITHUB_ENV -Value "ZIP_NAME=$zipName"
+          Add-Content -Path $env:GITHUB_ENV -Value "PORTABLE_ZIP_NAME=$portableZipName"
           Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$tag"
 
       - name: Upload Workflow Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.ZIP_NAME }}
+          name: WinAuth-${{ env.RELEASE_TAG }}
           path: |
             ./${{ env.ZIP_NAME }}
-            ./${{ env.ZIP_NAME }}.sha256
+            ./${{ env.PORTABLE_ZIP_NAME }}
           overwrite: true
 
       - name: Upload Assets to GitHub Release
@@ -105,6 +142,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          gh release upload "$env:RELEASE_TAG" "./$env:ZIP_NAME" "./$env:ZIP_NAME.sha256" --clobber
+          gh release upload "$env:RELEASE_TAG" "./$env:ZIP_NAME" "./$env:PORTABLE_ZIP_NAME" --clobber
 
 
