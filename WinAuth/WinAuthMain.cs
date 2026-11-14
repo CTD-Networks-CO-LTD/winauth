@@ -180,7 +180,7 @@ namespace WinAuth
 			new RegisteredAuthenticator {Name="Okta Verify", AuthenticatorType=RegisteredAuthenticator.AuthenticatorTypes.OktaVerify, Icon="OktaVerifyAuthenticatorIcon.png"}
 		};
 
-		public static ResourceManager StringResources = new ResourceManager(typeof(WinAuth.Resources.strings).FullName, typeof(WinAuth.Resources.strings).Assembly);
+		public static ResourceManager StringResources => WinAuth.Resources.strings.ResourceManager;
 
 		public static ILogger Logger;
 
@@ -352,6 +352,23 @@ namespace WinAuth
 			}
 
 			strings.Culture = System.Threading.Thread.CurrentThread.CurrentUICulture;
+
+			string startupConfigArg = null;
+			string[] cmdArgs = Environment.GetCommandLineArgs();
+			for (int i = 1; i < cmdArgs.Length; i++)
+			{
+				string arg = cmdArgs[i];
+				if (arg == "-p" || arg == "--password" || arg == "--proxy" || arg == "-l" || arg == "--log")
+				{
+					i++;
+				}
+				else if (!arg.StartsWith("-", StringComparison.Ordinal))
+				{
+					startupConfigArg = arg;
+				}
+			}
+			string savedLanguage = WinAuthHelper.ReadStartupSavedLanguage(startupConfigArg);
+			LanguageManager.Initialize(savedLanguage, CultureInfo.CurrentUICulture);
 
 			Application.SetDefaultFont(new Font(new FontFamily("Microsoft Sans Serif"), 8.25f));
 			Application.EnableVisualStyles();

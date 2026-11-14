@@ -110,6 +110,138 @@ namespace WinAuth
     /// </summary>
     public const string WINAUTH_PGP_PUBLICKEY = "";
 
+		/// <summary>
+		/// Get application version string without leading 'v' (e.g. "4.1.0" or "4.0.0").
+		/// </summary>
+		public static string GetVersionString()
+		{
+			var asm = typeof(WinAuthHelper).Assembly;
+			var infoAttr = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			if (infoAttr != null && !string.IsNullOrWhiteSpace(infoAttr.InformationalVersion))
+			{
+				string infoVer = infoAttr.InformationalVersion.Trim();
+				int plusIndex = infoVer.IndexOf('+');
+				if (plusIndex > 0)
+				{
+					infoVer = infoVer.Substring(0, plusIndex);
+				}
+				if (!string.IsNullOrEmpty(infoVer))
+				{
+					return infoVer;
+				}
+			}
+
+			Version version = asm.GetName().Version;
+			return version != null ? version.ToString(3) : "4.0.0";
+		}
+
+		/// <summary>
+		/// Get formatted version display string with leading 'v' (e.g. "v4.1.0").
+		/// </summary>
+		public static string GetVersionDisplayString()
+		{
+			string ver = GetVersionString();
+			return ver.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? ver : "v" + ver;
+		}
+
+		/// <summary>
+		/// Read &lt;language&gt; element from a config XML file before decryption.
+		/// </summary>
+		public static string ReadLanguageFromConfigFile(string configFile)
+		{
+			if (string.IsNullOrEmpty(configFile) || !File.Exists(configFile))
+			{
+				return null;
+			}
+
+			try
+			{
+				using (var fs = new FileStream(configFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+				using (var reader = XmlReader.Create(fs, Authenticator.SafeReaderSettings))
+				{
+					while (reader.Read())
+					{
+						if (reader.NodeType == XmlNodeType.Element)
+						{
+							if (string.Equals(reader.Name, "language", StringComparison.OrdinalIgnoreCase))
+							{
+								return reader.ReadElementContentAsString();
+							}
+							if (string.Equals(reader.Name, "data", StringComparison.OrdinalIgnoreCase)
+								|| string.Equals(reader.Name, "WinAuthAuthenticator", StringComparison.OrdinalIgnoreCase))
+							{
+								break;
+							}
+						}
+					}
+				}
+			}
+			catch (Exception)
+			{
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Determine saved language at startup (config &lt;language&gt; takes precedence; falls back to registry only when not in portable mode).
+		/// </summary>
+		public static string ReadStartupSavedLanguage(string explicitConfigFile = null)
+		{
+			string configFile = explicitConfigFile;
+			if (string.IsNullOrEmpty(configFile))
+			{
+				string candidate = Path.Combine(Environment.CurrentDirectory, DEFAULT_AUTHENTICATOR_FILE_NAME);
+				if (File.Exists(candidate))
+				{
+					configFile = candidate;
+				}
+			}
+			if (string.IsNullOrEmpty(configFile))
+			{
+				string exeDir = Path.GetDirectoryName(Environment.ProcessPath ?? Application.ExecutablePath);
+				if (!string.IsNullOrEmpty(exeDir))
+				{
+					string candidate = Path.Combine(exeDir, DEFAULT_AUTHENTICATOR_FILE_NAME);
+					if (File.Exists(candidate))
+					{
+						configFile = candidate;
+					}
+				}
+			}
+			if (string.IsNullOrEmpty(configFile))
+			{
+				string configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), WinAuthMain.APPLICATION_NAME);
+				string candidate = Path.Combine(configDir, DEFAULT_AUTHENTICATOR_FILE_NAME);
+				if (File.Exists(candidate))
+				{
+					configFile = candidate;
+				}
+			}
+
+			bool isPortable = false;
+			if (!string.IsNullOrEmpty(configFile) && File.Exists(configFile))
+			{
+				string fullPath = Path.GetFullPath(configFile);
+				string fileDir = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(fullPath) ?? string.Empty);
+				string baseDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+				isPortable = string.Equals(fileDir, baseDir, StringComparison.OrdinalIgnoreCase);
+
+				string configLang = ReadLanguageFromConfigFile(fullPath);
+				if (!string.IsNullOrWhiteSpace(configLang))
+				{
+					return configLang;
+				}
+			}
+
+			if (!isPortable)
+			{
+				return ReadRegistryValue(LanguageManager.RegistryLanguageKey, null) as string;
+			}
+
+			return null;
+		}
+
 
     /// <summary>
     /// Load the authenticator and configuration settings

@@ -202,19 +202,54 @@ namespace MetroFramework
 
         #endregion
 
+        private static string _uiFontFamilyName;
+
+        private static string ResolveUiFontFamilyName()
+        {
+            if (_uiFontFamilyName != null)
+            {
+                return _uiFontFamilyName;
+            }
+
+            string[] candidates = new[] { "Yu Gothic UI", "Meiryo UI", "Segoe UI" };
+            try
+            {
+                using (var installed = new InstalledFontCollection())
+                {
+                    foreach (string candidate in candidates)
+                    {
+                        foreach (FontFamily family in installed.Families)
+                        {
+                            if (string.Equals(family.Name, candidate, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _uiFontFamilyName = candidate;
+                                return _uiFontFamilyName;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            _uiFontFamilyName = "Segoe UI";
+            return _uiFontFamilyName;
+        }
+
         public static Font DefaultLight(float size)
         {
-            return FontResolver.ResolveFont("Segoe UI Light", size, FontStyle.Regular, GraphicsUnit.Pixel);
+            return FontResolver.ResolveFont(ResolveUiFontFamilyName(), size, FontStyle.Regular, GraphicsUnit.Pixel);
         }
 
         public static Font Default(float size)
         {
-            return FontResolver.ResolveFont("Segoe UI", size, FontStyle.Regular, GraphicsUnit.Pixel);
+            return FontResolver.ResolveFont(ResolveUiFontFamilyName(), size, FontStyle.Regular, GraphicsUnit.Pixel);
         }
 
         public static Font DefaultBold(float size)
         {
-            return FontResolver.ResolveFont("Segoe UI", size, FontStyle.Bold, GraphicsUnit.Pixel);
+            return FontResolver.ResolveFont(ResolveUiFontFamilyName(), size, FontStyle.Bold, GraphicsUnit.Pixel);
         }
 
         public static Font Title

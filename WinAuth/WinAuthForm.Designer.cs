@@ -61,6 +61,7 @@
 			this.metroStyleManager = new MetroFramework.Components.MetroStyleManager(this.components);
 			this.loadingPanel = new MetroFramework.Controls.MetroPanel();
 			this.pictureBox1 = new System.Windows.Forms.PictureBox();
+			this.versionLabel = new MetroFramework.Controls.MetroLabel();
 			this.authenticatorMenu.SuspendLayout();
 			this.yubiPanel.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)(this.yubiImage)).BeginInit();
@@ -230,9 +231,11 @@
 			// 
 			// introLabel
 			// 
+			this.introLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
 			this.introLabel.Location = new System.Drawing.Point(23, 76);
 			this.introLabel.Name = "introLabel";
-			this.introLabel.Size = new System.Drawing.Size(377, 35);
+			this.introLabel.Size = new System.Drawing.Size(374, 48);
 			this.introLabel.TabIndex = 3;
 			this.introLabel.Text = "Click the \"Add\" button to create or import your authenticator";
 			this.introLabel.Visible = false;
@@ -343,12 +346,27 @@
 			this.pictureBox1.TabIndex = 2;
 			this.pictureBox1.TabStop = false;
 			// 
+			// versionLabel
+			// 
+			this.versionLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+			this.versionLabel.FontSize = MetroFramework.MetroLabelSize.Small;
+			this.versionLabel.Location = new System.Drawing.Point(272, 28);
+			this.versionLabel.Name = "versionLabel";
+			this.versionLabel.Size = new System.Drawing.Size(140, 18);
+			this.versionLabel.TabIndex = 7;
+			this.versionLabel.TabStop = false;
+			this.versionLabel.Text = "";
+			this.versionLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
+			this.versionLabel.UseSelectable = false;
+			this.versionLabel.MouseDown += new System.Windows.Forms.MouseEventHandler(this.versionLabel_MouseDown);
+			// 
 			// WinAuthForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.BorderStyle = MetroFramework.Forms.MetroFormBorderStyle.FixedSingle;
 			this.ClientSize = new System.Drawing.Size(420, 180);
+			this.Controls.Add(this.versionLabel);
 			this.Controls.Add(this.loadingPanel);
 			this.Controls.Add(this.yubiPanel);
 			this.Controls.Add(this.passwordPanel);
@@ -415,6 +433,7 @@
 		private MetroFramework.Controls.MetroLabel yubiLabel;
 		private MetroFramework.Controls.MetroPanel loadingPanel;
 		private System.Windows.Forms.PictureBox pictureBox1;
+		private MetroFramework.Controls.MetroLabel versionLabel;
 
   }
 }
