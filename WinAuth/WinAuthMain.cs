@@ -60,7 +60,7 @@ namespace WinAuth
     /// <summary>
     /// URL to get latest information
     /// </summary>
-    public const string WINAUTH_UPDATE_URL = null;
+    public const string WINAUTH_UPDATE_URL = "https://api.github.com/repos/CTD-Networks-CO-LTD/winauth/releases?per_page=10";
 
 		/// <summary>
 		/// Set of inbuilt icons and authenticator types

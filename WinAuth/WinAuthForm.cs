@@ -81,6 +81,7 @@ namespace WinAuth
 		internal ContextMenuStrip AddAuthenticatorMenuControl => this.addAuthenticatorMenu;
 		internal AuthenticatorListBox AuthenticatorListControl => this.authenticatorList;
 		internal MetroFramework.Controls.MetroLabel VersionLabelControl => this.versionLabel;
+		internal WinAuthUpdater UpdaterControl => this.Updater;
 		internal void TriggerOpeningOptionsMenu() => OpeningOptionsMenu(this.optionsMenu, new CancelEventArgs());
 
 		public override void ApplyLanguage()
@@ -748,17 +749,12 @@ namespace WinAuth
 			{
 				Updater = new WinAuthUpdater(this.Config);
 
-				// the very first time, we set it to update each time
-				if (Updater.LastCheck == DateTime.MinValue)
-				{
-					Updater.SetUpdateInterval(new TimeSpan(0, 0, 0));
-				}
 				if (Updater.IsAutoCheck == true)
 				{
-					Version latest = Updater.LastKnownLatestVersion;
+					Version latest = WinAuthUpdater.NormalizeVersion(Updater.LastKnownLatestVersion);
 					if (latest != null && latest > Updater.CurrentVersion)
 					{
-						newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", latest);
+						newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", latest.ToString(3));
 						newVersionLink.Visible = true;
 					}
 				}
@@ -1626,10 +1622,15 @@ namespace WinAuth
 		/// </summary>
 		/// <param name="latest"></param>
 		private void NewVersionAvailable(Version latest)
+		{
+			if (this.IsDisposed || !this.IsHandleCreated)
 			{
-			if (Updater != null && Updater.IsAutoCheck == true && latest != null && latest > Updater.CurrentVersion)
-				{
-				this.Invoke((MethodInvoker)delegate { newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", latest.ToString(3)); newVersionLink.Visible = true; });
+				return;
+			}
+			Version normalized = WinAuthUpdater.NormalizeVersion(latest);
+			if (Updater != null && Updater.IsAutoCheck == true && normalized != null && normalized > Updater.CurrentVersion)
+			{
+				this.Invoke((MethodInvoker)delegate { newVersionLink.Text = string.Format(strings.NewVersionAvailable ?? "New version {0} available", normalized.ToString(3)); newVersionLink.Visible = true; });
 			}
 			else
 			{

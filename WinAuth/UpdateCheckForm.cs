@@ -141,7 +141,7 @@ namespace WinAuth
 			{
 				// get the interval and set in the updater
 				UpdateIntervalItem interval = autoDropdown.SelectedItem as UpdateIntervalItem;
-				Updater.SetUpdateInterval(interval.Interval);
+				Updater.SetUpdateInterval(interval != null ? interval.Interval : TimeSpan.Zero);
 			}
 			else
 			{
@@ -230,15 +230,16 @@ namespace WinAuth
 			}
 			else
 			{
-				Version latest = new Version(latestInfo.Version.Major, latestInfo.Version.Minor, latestInfo.Version.Build);
-				Version current = new Version(Updater.CurrentVersion.Major, Updater.CurrentVersion.Minor, Updater.CurrentVersion.Build);
+				Version latest = WinAuthUpdater.NormalizeVersion(latestInfo.Version);
+				Version current = WinAuthUpdater.NormalizeVersion(Updater.CurrentVersion);
 				if (current >= latest)
 				{
 					text = GetHtmlText("<p>" + (strings.UpdateLatestVersion ?? "Latest Version: {0}") + "</p><p>" + (strings.UpdateOnLatest ?? "You are on the latest version.") + "</p>", latest.ToString(3));
 				}
 				else
 				{
-					string info = string.Format("<p>" + (strings.UpdateLatestAvailable ?? "Latest Version: {0} (yours {1})") + "</p><p><a href=\"{2}\">" + (strings.UpdateDownloadVersion ?? "Download version {0}") + "</a></p>", latest.ToString(3), current.ToString(3), latestInfo.Url);
+					string escapedUrl = System.Security.SecurityElement.Escape(latestInfo.Url ?? string.Empty);
+					string info = string.Format("<p>" + (strings.UpdateLatestAvailable ?? "Latest Version: {0} (yours {1})") + "</p><p><a href=\"{2}\">" + (strings.UpdateDownloadVersion ?? "Download version {0}") + "</a></p>", latest.ToString(3), current.ToString(3), escapedUrl);
 					text = GetHtmlText("{0}", info);
 				}
 			}
