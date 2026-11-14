@@ -240,5 +240,35 @@ namespace AuthenticatorTests
 
         #endregion
 
+        #region ポータブル版初期設定ファイル（winauth.xml）読込検証
+
+        [Fact]
+        public void LoadConfig_MinimalPortableConfig_LoadsSuccessfullyWithoutError()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "WinAuthPortableTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string xmlPath = Path.Combine(tempDir, WinAuthHelper.DEFAULT_AUTHENTICATOR_FILE_NAME);
+                string curVerStr = WinAuthConfig.CURRENTVERSION.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+                string minimalXml = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<WinAuth version=\"{0}\">\n</WinAuth>\n", curVerStr);
+                File.WriteAllText(xmlPath, minimalXml, new System.Text.UTF8Encoding(false));
+
+                var config = WinAuthHelper.LoadConfig(null, xmlPath);
+                Assert.NotNull(config);
+                Assert.Equal(WinAuthConfig.CURRENTVERSION, config.Version);
+                Assert.Empty(config);
+                Assert.False(config.IsReadOnly, "Minimal portable config matching CURRENTVERSION should not be read-only.");
+                Assert.True(config.AutoSize);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        #endregion
+
     }
 }

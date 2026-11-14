@@ -44,7 +44,11 @@
 ## ダウンロードと使い方
 
 ### ダウンロード
-最新版のバイナリは本リポジトリの [Releases](https://github.com/CTD-Networks-CO-LTD/winauth/releases) ページからダウンロードできます（`WinAuth-<バージョン>.zip` および検証用の `.sha256` チェックサムファイルが提供されます）。
+最新版のバイナリは本リポジトリの [Releases](https://github.com/CTD-Networks-CO-LTD/winauth/releases) ページからダウンロードできます。
+* **`WinAuth-<バージョン>.zip`**: 通常版（`WinAuth.exe` 単体アーカイブ）
+* **`WinAuth-<バージョン>-portable.zip`**: ポータブル版（`WinAuth.exe` および初期 `winauth.xml` を同梱。展開するだけで同フォルダ内でポータブル動作）
+
+※バイナリの整合性検証が必要な場合は、GitHub Releases ページに表示される SHA-256 ダイジェストをご確認ください。
 
 ### 基本的な使い方
 1. 事前に .NET 10 Desktop Runtime がインストールされていることを確認します。
