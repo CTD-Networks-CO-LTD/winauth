@@ -4,10 +4,29 @@
 
 本リポジトリは、Colin Mackie 氏によるオリジナルの WinAuth をベースに、CTD Networks Co., Ltd. にて **.NET 10 への移行**、**暗号基盤の刷新（WINAUTH4）**、および **セキュリティ脆弱性の改修** を行ったバージョン（v4.0 以降）です。
 
-<div align="center">
-  <img alt="WinAuth 動作画面" src="docs/images/winauth-preview.png" />
-  <p>※ 画面内のアカウントおよびワンタイムパスワードはすべてテスト用のダミーデータです。</p>
-</div>
+<table>
+  <tbody>
+    <tr>
+      <td align="center">日本語/（英語）対応しました(4.1.3~)</td>
+      <td align="center">WinAuth 動作画面</td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img width="50%" alt="1_日本語対応(4 1 3)"
+             src="https://github.com/user-attachments/assets/4331d5e3-7fad-4402-9ec4-d422248f6ede" />
+      </td>
+      <td rowspan="2" align="center" valign="middle">
+        <img alt="WinAuth 動作画面" src="docs/images/winauth-preview.png" />
+        <p>※ 画面内のアカウントおよびワンタイムパスワードはすべてテスト用のダミーデータです。</p>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img width="50%" alt="2_日本語対応(4 1 3)" src="https://github.com/user-attachments/assets/e368af18-aace-4875-9f37-2cd895702731" />
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
