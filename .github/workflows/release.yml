@@ -92,12 +92,13 @@ jobs:
             Remove-Item -LiteralPath $portableDir -Recurse -Force
           }
           New-Item -ItemType Directory -Path $portableDir -Force | Out-Null
-          $xmlContent = @"
-<?xml version="1.0" encoding="utf-8"?>
-<WinAuth version="$xmlVersion">
-</WinAuth>
-"@
-          [System.IO.File]::WriteAllText((Join-Path (Resolve-Path $portableDir).Path "winauth.xml"), $xmlContent + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+          $xmlLines = @(
+            '<?xml version="1.0" encoding="utf-8"?>'
+            "<WinAuth version=`"$xmlVersion`">"
+            '</WinAuth>'
+          )
+          $xmlContent = ($xmlLines -join "`r`n") + "`r`n"
+          [System.IO.File]::WriteAllText((Join-Path (Resolve-Path $portableDir).Path "winauth.xml"), $xmlContent, [System.Text.UTF8Encoding]::new($false))
 
           $portableZipName = "WinAuth-$tag-portable.zip"
           Compress-Archive -LiteralPath "./publish/WinAuth.exe", "$portableDir/winauth.xml" -DestinationPath "./$portableZipName" -Force
